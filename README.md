@@ -1,7 +1,7 @@
 # ResearchMethodsCyber
 ## Materials for course Research Methods in Cyberspace, Behavior, and e-Therapy
 
-### 19-21 November, 2024
+### November 19-21, 2024
 
 ### David Leiva Ureña
 
