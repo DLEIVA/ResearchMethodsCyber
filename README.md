@@ -13,32 +13,35 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8152802.svg)](https://doi.org/10.5281/zenodo.8152802)
 
-## About the course
+## About the sessions
 
-Este curso se ha pensado como un taller de tipo práctico en el que se introducirá a los participantes en la Ciencia de Datos mediante el software estadístico de libre distribución R. Puesto que se trata de un lenguaje de programación y su aprendizaje puede resultar costoso, se utilizarán numerosos ejemplos que faciliten el dominio de la sintaxis básica. A lo largo de las sesiones se capacitará a los participantes a ser autónomos en aquellas técnicas básicas relacionadas con la visualización de datos, la modelización estadística así como en la elaboración de informes técnicos con herramientas de R en combinación con programas como $\LaTeX$ o *Markdown*. Dado el carácter eminentemente práctico del curso, éste debería realizarse en aula de ordenadores o bien que cada participante lleve un ordenador portátil.
+This block of the course has been designed as a theoretical-practical workshop in which participants will be introduced to some statistical techniques using the freely distributed statistical software R. Since this is a programming language and learning it can be difficult, numerous examples will be used to facilitate the mastery of the basic syntax. Throughout the sessions, students will be trained to be autonomous in basic techniques related to data visualization, statistical decision making, statistical modeling, as well as in the elaboration of technical reports with R tools. Given the eminently practical nature of the course, it should be held in a computer classroom or each student should bring a laptop computer.
 
-### Programa del curso:
+### Teaching plan:
 
 1. Correlation tests (2h)
- - Instalación y ejecución de R
- - RStudio: una IDE para R
- - Introducción al *tidyverse*
+ - Pearson's correlation tests
+ - Spearmans's correlation tests
+ - Kendall's correlation tests
 
-2. Linear regression models (2h)
- - Paquetes gŕaficos básicos 
- - *ggplot2* y otros paquetes
+2. Linear regression models (4h)
+ - Simple and multiple linear regression models 
+ - Models diagnostics
+ - Qualitative predictors
+ - Introduction to polynomial regression
 
-3. Mediation and moderation models (2h)
- - Ejemplos de modelos estadísticos
- - Modelización con tidymodels
+3. Mediation and moderation models (4h)
+ - Mediation models
+ - Moderation models
 
 4. APA guidelines for reporting research results (2h)
- - Generación de documentos con *knitr* y *RMarkdown*
- - Desarrollo de aplicaciones dinámicas con Shiny
+ - APA style
+ - References
+ - Reporting tables and figures
 
 ## About the lecturer
 
-My name is David Leiva and I am an Associate Professor in the Department of Social Psychology and Quantitative Psychology. I teach undergraduate, masters and doctoral courses in Statistics, Research Techniques, Statistical Modeling, Data Science and Applied Mathematics. My main research interests are dyadic data analysis, modeling behavior and statistical software. I have also participated in numerous works in fields such as Organizational Psychology, Neuropsychology, Psychogerontology or Biology, among others. You can find my CV in the following [link](https://github.com/DLEIVA/CV/blob/main/CV_DLU_2023.pdf).
+My name is David Leiva and I am an Associate Professor in the Department of Social Psychology and Quantitative Psychology. I teach undergraduate, masters and doctoral courses in Statistics, Research Techniques, Statistical Modeling, Data Science and Applied Mathematics. My main research interests are dyadic data analysis, modeling behavior and statistical software. I have also participated in numerous works in fields such as Organizational Psychology, Neuropsychology, Psychogerontology or Biology, among others. You can find my CV in the following [link](https://github.com/DLEIVA/CV/blob/main/CV_DLU_2024.pdf).
 
 ## Previous steps
 
@@ -65,7 +68,7 @@ Throughout the sessions we will be using various R packages that you will need t
 update.packages(ask = FALSE, checkBuilt = TRUE)
 
 # Some packages to be installed
-pkgs <- c('haven','tidyverse','car','here','boot','effects','lmtest','DiagrammeR','interactions','compareGroups','apaTables','dslabs','ggthemes','ggrepel','ggstatsplot','patchwork')
+pkgs <- c('usethis','haven','tidyverse','car','here','boot','effects','lmtest','DiagrammeR','interactions','compareGroups','apaTables','dslabs','ggthemes','ggrepel','ggstatsplot','patchwork')
 
 # Install these packages
 install.packages(pkgs, Ncpus = 4) # Specify Ncpus depending on the number of available CPUs
