@@ -42,7 +42,7 @@ This block of the course has been designed as a theoretical-practical workshop i
 
 ## About the lecturer
 
-My name is David Leiva and I am an Associate Professor in the Department of Social Psychology and Quantitative Psychology. I teach undergraduate, masters and doctoral courses in Statistics, Research Techniques, Statistical Modeling, Data Science and Applied Mathematics. My main research interests are dyadic data analysis, modeling behavior and statistical software. I have also participated in numerous works in fields such as Organizational Psychology, Neuropsychology, Psychogerontology or Biology, among others. You can find my CV in the following [link](https://github.com/DLEIVA/CV/blob/main/CV_DLU_2024.pdf).
+My name is David Leiva and I am an Associate Professor in the Department of Social Psychology and Quantitative Psychology. I teach undergraduate, masters and doctoral courses in Statistics, Research Techniques, Statistical Modeling, Data Science and Applied Mathematics. My main research interests are dyadic data analysis, modeling behavior and statistical software. I have also participated in numerous works in fields such as Organizational Psychology, Neuropsychology, Psychogerontology or Biology, among others. You can find my CV in the following [link](https://github.com/DLEIVA/CV/blob/main/CV_DLU_2024_ENG.pdf).
 
 ## Previous steps
 
