@@ -1,0 +1,161 @@
+---
+title: "Mediation and Moderation Models with R"
+output: html_notebook
+---
+
+# PREVIOUS STEPS
+
+Before sourcing file **process.R**, you need to download it at the folder in which you've saved the Rmd file. The R script is available at [this link](https://www.processmacro.org/download.html).
+
+```{r}
+pkgs2use<- c('haven','tidyverse','here','DiagrammeR','interactions')
+
+inst.load.pkg <- function(pkg){ 
+  if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+      library(pkg, character.only = TRUE)
+  }
+}
+
+
+invisible(lapply(pkgs2use,inst.load.pkg))
+rm(pkgs2use,inst.load.pkg)
+
+source(here("MATERIALS","Practice","process.R"))
+```
+
+# SIMPLE MEDIATION MODELS WITH R
+
+### Import dataset
+
+```{r}
+StressDF <- read_sav(here("MATERIALS","Practice","DataSets", "estress.sav"))
+```
+
+### Fit model
+
+```{r message=FALSE,warning=FALSE}
+results <- process(StressDF,y='withdraw',x='estress',m='affect',total=1,model=4,progress=0,save=3)
+```
+
+### Plot fitted model
+
+```{r}
+resCOEFS <- round(results[[2]],2)
+
+starlabs <- c(paste("c´=",resCOEFS[12,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[12,4]<.001,'***',ifelse(resCOEFS[12,4]<.01,'**',ifelse(resCOEFS[12,4]<.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("a<FONT POINT-SIZE='6'><SUB>1</SUB></FONT>=",resCOEFS[3,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[3,4]<.001,'***',ifelse(resCOEFS[3,4]<.01,'**',ifelse(resCOEFS[3,4]<.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("b<FONT POINT-SIZE='6'><SUB>1</SUB></FONT>=",resCOEFS[7,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[7,4]<.001,'***',ifelse(resCOEFS[7,4]<.01,'**',ifelse(resCOEFS[7,4]<.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("a<FONT POINT-SIZE='6'><SUB>2</SUB></FONT>=",resCOEFS[6,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[6,4]<.001,'***',ifelse(resCOEFS[6,4]<.01,'**',ifelse(resCOEFS[6,4]<.05,'*',' '))),"</SUP></FONT>",sep='')
+              )
+grViz(paste("
+      digraph SEM {
+      
+      graph [layout = neato,
+      overlap = true,
+      outputorder = edgesfirst
+      title='TF']
+      
+      node [shape = rectangle,fontsize=10]
+      
+      
+      a [pos = '-1,0!', label = 'STRESS']
+      b [pos = '1,1!', label = 'AFFECT']
+      c [pos = '3,0!', label = 'WITHDRAWAL']
+
+      node [shape=plaintext,fontsize=9.5]
+      
+      ac [pos='1,.1!', label = <",starlabs[1],">]
+      ab [pos='-0.2,.6!', label = <",starlabs[2],">]
+      bc [pos='2.2,.6!', label = <",starlabs[3],">]
+      
+      a->b
+      a->c
+      b->c
+}
+",sep='')
+)
+```
+
+
+# MULTIPLE MEDIATION MODELS WITH R
+
+### Import dataset
+
+```{r}
+pmiDF <- read_sav(here("MATERIALS","Practice","DataSets", "pmi.sav"))
+```
+
+### Fit model
+
+```{r}
+results <- process(pmiDF,y='reaction',x='cond',m=c('pmi','import'),total=1,model=4,save=3,progress=0)
+```
+
+### Plot fitted model
+
+```{r}
+resCOEFS <- round(results[[2]],2)
+
+starlabs <- c(paste("c´=",resCOEFS[9,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[9,4]<.001,'***',ifelse(resCOEFS[9,4]<.01,'**',ifelse(resCOEFS[9,4]<=.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("a<FONT POINT-SIZE='6'><SUB>1</SUB></FONT>=",resCOEFS[6,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[6,4]<.001,'***',ifelse(resCOEFS[6,4]<.01,'**',ifelse(resCOEFS[6,4]<=.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("b<FONT POINT-SIZE='6'><SUB>1</SUB></FONT>=",resCOEFS[11,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[11,4]<.001,'***',ifelse(resCOEFS[11,4]<.01,'**',ifelse(resCOEFS[11,4]<=.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("a<FONT POINT-SIZE='6'><SUB>2</SUB></FONT>=",resCOEFS[3,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[3,4]<.001,'***',ifelse(resCOEFS[3,4]<.01,'**',ifelse(resCOEFS[3,4]<=.05,'*',' '))),"</SUP></FONT>",sep=''),
+              paste("b<FONT POINT-SIZE='6'><SUB>2</SUB></FONT>=",resCOEFS[10,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[10,4]<.001,'***',ifelse(resCOEFS[10,4]<.01,'**',ifelse(resCOEFS[10,4]<=.05,'*',' '))),"</SUP></FONT>",sep='')              
+              )
+grViz(paste("
+      digraph SEM {
+      
+      graph [layout = neato,
+      overlap = true,
+      outputorder = edgesfirst
+      title='TF']
+      
+      node [shape = rectangle,fontsize=10]
+      
+      
+      a [pos = '-1,0!', label = 'CONDITION']
+      b [pos = '1,1!', label = 'IMPORT']
+      c [pos = '3,0!', label = 'REACTION']
+      d [pos = '1,-1!', label = 'PMI']
+
+      node [shape=plaintext,fontsize=9.5]
+      
+      ac [pos='1,.1!', label = <",starlabs[1],">]
+      ab [pos='-0.2,.6!', label = <",starlabs[2],">]
+      bc [pos='2.2,.6!', label = <",starlabs[3],">]
+      ad [pos='0.3,-.4!', label = <",starlabs[4],">]
+      dc [pos='1.8,-.4!', label = <",starlabs[5],">]
+      
+      a->b
+      a->c
+      b->c
+      a->d
+      d->c
+}
+",sep='')
+)
+```
+
+
+# MODERATION MODELS WITH R
+
+### Import dataset
+
+```{r}
+disasterDF <- read_sav(here("MATERIALS","Practice","DataSets", "disaster.sav"))
+```
+
+### Fit Model
+
+```{r}
+process(disasterDF,x='frame',y='justify',w='skeptic',model=1,jn=1)
+```
+
+### Plot moderation
+
+```{r}
+mod.moderation <- lm(justify~frame*skeptic,data=disasterDF)
+interactions::johnson_neyman(model = mod.moderation, pred = frame,modx = skeptic)
+```
+

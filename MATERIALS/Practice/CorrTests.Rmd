@@ -1,0 +1,126 @@
+---
+title: "Correlation tests with R"
+output: html_notebook
+---
+
+# PREVIOUS STEPS
+
+Here is for installing missing packages and load them in the working session.
+
+```{r}
+pkgs2use<- c('haven','tidyverse','car','here','boot')
+
+inst.load.pkg <- function(pkg){ 
+  if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+      library(pkg, character.only = TRUE)
+  }
+}
+
+
+invisible(lapply(pkgs2use,inst.load.pkg))
+rm(pkgs2use,inst.load.pkg)
+```
+
+# PEARSON'S CORRELATION TESTS
+
+### Loading dataset
+
+```{r}
+dataEx1 <- haven::read_sav(here("MATERIALS","Practice","DataSets", "ExCor1.sav"))
+```
+
+```{r}
+ggplot(dataEx1,aes(x=PANAS.NA,y=CFQ)) +
+  geom_point() +
+  geom_smooth()
+```
+
+### Correlation test
+
+```{r}
+with(dataEx1,cor.test(PANAS.NA,CFQ))
+```
+
+
+# SPEARMAN'S CORRELATION TESTS
+
+### Loading dataset
+
+```{r}
+dataEx2 <- haven::read_sav(here("MATERIALS","Practice","DataSets", "ExCor2.sav"))
+```
+
+```{r}
+ggplot(dataEx2,aes(x=qualitySN,y=riskSE)) +
+  geom_point() +
+  geom_smooth()
+```
+
+### Correlation test
+
+```{r}
+with(dataEx2,cor.test(qualitySN,riskSE,method='spearman'))
+```
+
+### Confidence interval for true correlation (Bootstrap)
+
+```{r warning=FALSE,message=FALSE}
+extract.rho <- function(df,i){
+  cor.test(df[i,'x'],df[i,'y'],method="spearman")$estimate
+}
+
+df <- data.frame(x=dataEx2$qualitySN,y=dataEx2$riskSE)
+
+corboot <- boot(df,extract.rho, R=5000)
+
+boot.ci(corboot, type = c("bca"))
+
+```
+
+
+# KENDALL'S CORRELATION TESTS
+
+### Loading dataset
+
+```{r}
+dataEx3 <- haven::read_sav(here("MATERIALS","Practice","DataSets", "ExCor3.sav"))
+```
+
+```{r}
+dataEx3$education <- as_factor(dataEx3$education)
+dataEx3$phase <- as_factor(dataEx3$phase)
+df <- dataEx3 %>%
+  group_by(education,phase) %>%
+  summarise(counts = n(),.groups = 'drop') 
+
+ggplot(df, aes(x = phase, y = counts)) +
+  geom_bar(
+    aes(color = education, fill = education),
+    stat = "identity", position = position_dodge(0.8),
+    width = 0.7) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800", "#FC4E07"))+
+  scale_fill_manual(values = c("#00AFBB", "#E7B800", "#FC4E07")) + theme_bw()
+```
+
+### Correlation test
+
+```{r}
+with(dataEx3,cor.test(as.numeric(phase),as.numeric(education),method='kendall'))
+```
+
+### Confidence interval for true correlation (Bootstrap)
+
+```{r warning=FALSE,message=FALSE}
+extract.tau <- function(df,i){
+  cor.test(df[i,'x'],df[i,'y'],method="kendall")$estimate
+}
+
+df <- data.frame(x=as.numeric(dataEx3$phase),y=as.numeric(dataEx3$education))
+
+corboot <- boot(df,extract.tau, R=5000)
+
+boot.ci(corboot, type = c("bca"))
+
+```
+

@@ -1,0 +1,275 @@
+---
+title: "Linear Regression Models with R"
+output: html_notebook
+---
+
+# PREVIOUS STEPS
+
+```{r}
+pkgs2use<- c('haven','tidyverse','car','here','effects','lmtest')
+
+inst.load.pkg <- function(pkg){ 
+  if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+      library(pkg, character.only = TRUE)
+  }
+}
+
+
+invisible(lapply(pkgs2use,inst.load.pkg))
+rm(pkgs2use,inst.load.pkg)
+```
+
+# SIMPLE LINEAR REGRESSION WITH R
+
+### Import dataset
+
+```{r}
+Prestige <- read_sav(here("MATERIALS","Practice","DataSets", "Prestige.sav"))
+```
+
+### Check linear relationship
+
+```{r}
+with(Prestige,plot(income,prestige,pch=16))
+```
+
+
+### Fit linear model
+
+```{r}
+mod1 <- lm(prestige~income,data=Prestige)
+```
+
+### Summarize fitted model
+```{r}
+summary(mod1)
+```
+
+### Add fitted line to the previous plot
+
+```{r}
+plot(Prestige[c(2,4)],pch=16)
+abline(mod1,col='green')
+```
+
+
+### Confidence intervals for the estimates 
+
+Note: Confint() is included in car package. See also confint().
+
+```{r}
+car::Confint(mod1,level = .95)
+confint(mod1,level = .95)
+```
+
+### Models diagnostics: Diagnostic Plots
+
+```{r fig.width=10,fig.height=10}
+par(mfrow=c(2,2))
+plot(mod1)
+```
+
+### Models diagnostics: Linearity
+
+```{r}
+par(mfrow=c(1,2))
+plot(mod1,which = c(1,3))
+
+crPlots(mod1, smooth=list(span=0.5))
+
+lmtest::resettest(prestige ~ income, power=2:3, type="regressor", data=Prestige)
+
+# Component residuals plots 
+newmod <- update(mod1,.~.+I(income^2),data=Prestige)
+crPlots(newmod, smooth=list(span=0.5))
+```
+
+
+### Models diagnostics: Homoscedasticity
+
+```{r}
+par(mfrow=c(1,2))
+plot(mod1,which=c(1,3))
+
+lmtest::bptest(prestige ~ income, varformula = ~ fitted.values(mod1), studentize=FALSE, data=Prestige)
+```
+
+
+### Models diagnostics: Normality
+
+```{r}
+par(mfrow=c(1,2))
+hist(mod1$residuals)
+plot(mod1,which = 2)
+
+shapiro.test(mod1$residuals)
+
+#ks.test(residuals(bestmod),'pnorm',mean=0,sd=summary(bestmod)$sigma)
+```
+
+### Models diagnostics: Independence
+
+```{r}
+acf(mod1$residuals)
+
+set.seed(123)  # Fixing random seed for Bootstrapping in DW test
+durbinWatsonTest(mod1,max.lag=10)
+```
+
+
+### Models diagnostics: Influence
+
+```{r}
+influenceIndexPlot(mod1, id=list(method="y", n=3), vars=c("Cook"))
+# Extractor function: cooks.distance()
+
+influencePlot(mod1, id=list(method="noteworthy", n=3))
+avPlots(mod1, id=list(method="mahal", n=2)) ## Added-variables plot
+outlierTest(mod1)
+```
+
+
+### Prediction with the linear model
+
+* Mean response:
+
+```{r}
+x<- with(Prestige,seq(min(income),max(income),10))
+preds <- predict(mod1,newdata=list(income=x),interval='confidence')
+
+plot(Prestige[c(2,4)],pch=16,ylim=range(preds)) # DO CHECK EMPIRICAL RANGE OF PRESTIGE TO SET ylim
+abline(mod1,col='green')
+
+lines(x, preds[,2], col="blue", lty=2)
+lines(x, preds[,3], col="blue", lty=2)
+```
+
+
+* Individual response:
+
+```{r}
+preds <- predict(mod1,newdata=list(income=x),interval='prediction')
+
+plot(Prestige[c(2,4)],pch=16,ylim=range(preds)) # DO CHECK EMPIRICAL RANGE OF PRESTIGE TO SET ylim
+abline(mod1,col='green')
+
+lines(x, preds[,2], col="blue", lty=2)
+lines(x, preds[,3], col="blue", lty=2)
+```
+
+# MULTIPLE LINEAR REGRESSION WITH R
+
+### Fit linear model
+
+```{r}
+mod2 <- lm(prestige~income+women,data=Prestige)
+```
+
+
+### Summarize fitted model
+```{r}
+summary(mod2)
+```
+
+### Plot partial effects
+
+```{r fig.height=12,fig.width=12}
+plot(allEffects(mod2))
+```
+
+### Confidence intervals for the estimates 
+
+```{r}
+car::Confint(mod2,level = .99)
+confint(mod2,level=.99)
+```
+
+### Checking multicollinearity
+
+```{r}
+car::vif(mod2)
+```
+
+# QUALITATIVE PREDICTORS
+
+```{r}
+Prestige$type <- as_factor(Prestige$type)
+ggplot(na.omit(Prestige),aes(x=income,y=prestige,color=type)) +
+  geom_point() +
+  geom_smooth(method='lm')
+```
+
+```{r}
+
+mod3 <- lm(prestige~income+type,data=Prestige)
+summary(mod3)
+```
+
+```{r fig.height=12,fig.width=12}
+plot(allEffects(mod3))
+```
+
+```{r}
+#mod4 <- lm(prestige~income*type,data=Prestige) #income+type+income:type
+mod4 <- update(mod3,.~.+income:type)
+summary(mod4)
+```
+
+```{r fig.height=12,fig.width=12}
+plot(allEffects(mod4))
+```
+
+```{r}
+anova(mod3,mod4)
+```
+
+
+# INTERACTIONS BETWEEN NUMERICAL PREDICTORS IN A LINEAR REGRESSION
+
+```{r}
+mod.int <- update(mod2,.~.+income:women,data=Prestige)
+summary(mod.int)
+anova(mod.int)
+```
+
+### Effects
+
+```{r fig.height=12,fig.width=12}
+plot(allEffects(mod.int))
+```
+
+
+# POLYNOMIAL REGRESSION
+
+### Fit polynomial model: 2nd degree
+
+\[
+P = \beta_0 +\beta_1I + \beta_2I^2 + \epsilon
+\]
+
+```{r}
+mod.poly2 <- lm(prestige~poly(income,2,raw = TRUE),data=Prestige)
+summary(mod.poly2)
+plot(effects::allEffects(mod.poly2))
+```
+
+
+### Fit polynomial model: 3rd degree
+
+\[
+P = \beta_0 +\beta_1I + \beta_2I^2 + \beta_3I^3 + \epsilon
+\]
+
+```{r}
+mod.poly3 <- lm(prestige~poly(income,3,raw = TRUE),data=Prestige)
+summary(mod.poly3)
+plot(effects::allEffects(mod.poly3))
+```
+
+### F-test for nested models
+
+```{r}
+anova(mod.poly2,mod.poly3)
+```
+

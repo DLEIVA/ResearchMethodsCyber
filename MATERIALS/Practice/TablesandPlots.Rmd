@@ -1,0 +1,165 @@
+---
+title: "APA tables and plots with R"
+output: html_notebook
+---
+
+# PREVIOUS STEPS
+
+```{r}
+pkgs2use<- c('haven','tidyverse','car','here','compareGroups','apaTables',
+             'dslabs','ggthemes','ggrepel','ggstatsplot','patchwork')
+
+inst.load.pkg <- function(pkg){ 
+  if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+      library(pkg, character.only = TRUE)
+  }
+}
+
+
+invisible(lapply(pkgs2use,inst.load.pkg))
+rm(pkgs2use,inst.load.pkg)
+```
+
+# APA TABLES
+
+### Loading dataset
+
+```{r}
+Prestige <- haven::read_sav(here("MATERIALS","Practice","DataSets", "Prestige.sav"))
+Prestige$type <- as_factor(Prestige$type)
+```
+
+### Descriptive tables with R:comparing groups
+
+```{r}
+# compareGroups package
+res <- compareGroups(type~prestige+education+income+women,data=Prestige)
+tableRES <- createTable(res)
+export2word(tableRES,file='Mytable.docx')
+```
+
+### Correlation matrices with R
+
+
+```{r}
+apaTables::apa.cor.table(Prestige[c('education','women','income','prestige','census')], filename="MatCorTable.docx", table.number=1)
+```
+
+
+### ANOVA table
+
+```{r}
+mymod <- lm(prestige~type,data=Prestige)
+apa.aov.table(mymod, filename = "ANOVATable.docx", table.number = 2)
+```
+
+
+### Hierarchical Regression table 
+
+```{r}
+mod1 <- lm(prestige~income,data=Prestige)
+mod2 <- lm(prestige~income+women,data=Prestige)
+mod3 <- lm(prestige~income+women+I(income*women),data=Prestige)
+apa.reg.table(mod1, mod2, mod3, filename = "HierReg_Table.docx", table.number = 3)
+```
+
+
+# R GRAPHICS
+
+### Qualitative data
+
+```{r fig.width=7,fig.height=7}
+datKendall <- haven::read_sav(here("MATERIALS","Practice","DataSets", "ExCor3.sav"))
+
+datKendall$education <- as_factor(datKendall$education)
+datKendall$phase <- as_factor(datKendall$phase)
+
+df <- datKendall %>%
+  group_by(education, phase) %>%
+  summarise(counts = n()) 
+
+p <- ggplot(df, aes(x = phase, y = counts)) +
+  geom_bar(
+    aes(color = education, fill = education),
+    stat = "identity", position = position_dodge(0.8),
+    width = 0.7
+    ) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800", "#FC4E07"))+
+  scale_fill_manual(values = c("#00AFBB", "#E7B800", "#FC4E07")) + theme_bw()
+p+theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        legend.text=element_text(size=20),
+        legend.title=element_text(size=20),
+        legend.position = c(.2, .8))
+```
+
+
+### Ploting subpanels
+
+```{r}
+ggplot(Prestige %>% filter(!is.na(type)),aes(x=income,y=prestige)) +
+  geom_point() +
+  geom_smooth(method='lm') +
+  facet_wrap(~type)
+```
+
+
+### Customizing ready-to-publish plots
+
+```{r}
+r <- murders %>%
+    summarize(rate = sum(total) / sum(population) * 10^6) %>%
+    pull(rate)
+    
+murders %>% ggplot(aes(population/10^6, total, label = abb)) +
+    geom_abline(intercept = log10(r), lty = 2, color = "darkgrey") +
+    geom_point(aes(col=region), size = 3) +
+    geom_text_repel() +
+    scale_x_log10() +
+    scale_y_log10() +
+    xlab("Populations in millions (log scale)") +
+    ylab("Total number of murders (log scale)") +
+    ggtitle("US Gun Murders in 2010") +
+    scale_color_discrete(name = "Region") +
+    theme_economist() 
+```
+
+
+### Combining plots and stats
+
+```{r }
+ggstatsplot::ggbetweenstats(
+  data  = Prestige,
+  x     = type,
+  y     = women,
+  title = "Distribution of women percentage across professional types"
+)
+```
+
+
+### Plotting in layouts
+
+```{r}
+p1 <- ggplot(Prestige,aes(x=type)) +
+  geom_bar(fill='red') +
+  theme_classic()
+
+p2 <- ggplot(Prestige,aes(x=education,y=prestige,na.rm=TRUE)) +
+  geom_point(size=2,color='blue',alpha=.2) +
+  geom_smooth(method='lm',color='red',se=FALSE) +
+  theme_classic()
+
+p3 <- ggplot(Prestige %>% filter(!is.na(type)),aes(x=education,
+      y=prestige,color=type,na.rm=TRUE)) +
+      geom_point() +
+      geom_smooth() +
+      theme_classic() +
+      theme(legend.position = c(.1, .7))
+
+(p1 + p2) / p3
+```
+
+
