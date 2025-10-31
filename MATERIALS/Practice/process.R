@@ -1,12 +1,12 @@
 
-# PROCESS for R version 4.3.1
+# PROCESS for R version 5.0
 # Written by Andrew F. Hayes
-# www.afhayes.com
-# www.processmacro.org
-# Copyright 2012-2022 by Andrew F. Hayes ALL RIGHTS RESERVED
-# Documented in http://www.guilford.com/p/hayes3 and supplements
+# www.afhayes.com www.processmacro.org
+# Copyright 2013-2025 by Andrew F. Hayes ALL RIGHTS RESERVED
+# Documented in http://www.guilford.com/p/hayes3 and in the 
+# documentation addendum found in the PROCESS archive you downloaded
 # PROCESS workshop schedule at http://haskayne.ucalgary.ca/CCRAM
-#
+
 # Distribution of this code in any form except through processmacro.org 
 # is prohibited without the permission of the copyright holder, as is
 # distribution after modification.
@@ -23,22 +23,16 @@
 # To activate, run this script. It may take a few minutes. 
 # This will produce a function called process. The other functions
 # it creates cannot be accessed by the user but are used by the master 
-# process function. This code was not written to be easy for others to
-# understand or to look pretty. It was written to work and make some things
-# easier to do than they otherwise would be.
+# process function
 
 process.bcboot3<-function(databcbt,estmte,xp2,badend,priorlo,priorhi)
 {
  databcbt<-as.matrix(sort(databcbt))
  badlo<-0;badhi<-0
- pv<-matrix(as.numeric(databcbt < estmte));
- pv<-sum(pv)/nrow(databcbt);ppv<-pv;
+ pv<-matrix(as.numeric(databcbt < estmte))
+ pv<-sum(pv)/nrow(databcbt);ppv<-pv
  if (pv > .5){ppv<-(1-pv)}
- y5<-sqrt(-2*log(ppv))
- p0<-(-.322232431088);p1<-(-1);p2<-(-.342242088547);p3<-(-.0204231210245)
- p4<-(-.0000453642210148);q0<-(.0993484626060);q1<-(.588581570495)
- q2<-(.531103462366);q3<-(.103537752850);q4<-(.0038560700634)
- xp<-y5+((((y5*p4+p3)*y5+p2)*y5+p1)*y5+p0)/((((y5*q4+q3)*y5+q2)*y5+q1)*y5+q0)
+ xp<-(-qnorm(ppv))
  if (pv <= .5){xp<-(-xp)}
  cilow<-round(nrow(databcbt)*pnorm(2*xp-xp2))
  cihigh<-trunc(nrow(databcbt)*pnorm(2*xp+xp2))+1
@@ -108,7 +102,9 @@ process.llrtest3<-function(lm,y,x,b,basemod,iterate,converge)
 
 process.describ3<-function(descdatf,type=0,quantle=1)
 {
- desctmp<-matrix(-999,(8-(4*type)),ncol(descdatf))
+ desctmp<-matrix(-999,8,ncol(descdatf))
+ modvals<-matrix(-999)
+ #desctmp<-matrix(-999,(8-(4*type)),ncol(descdatf))
  # mean, sd, min, max, 16th, 50th, 84th, dich toggle
  for (jd in c(1:ncol(descdatf)))
  {
@@ -118,46 +114,50 @@ process.describ3<-function(descdatf,type=0,quantle=1)
   desctmp[2,jd]<-sd(descdat)
   desctmp[3,jd]<-min(descdat)
   desctmp[4,jd]<-max(descdat)
+  tmp<-as.numeric(descdat==desctmp[3,jd])+as.numeric(descdat==desctmp[4,jd])
+  desctmp[8,jd]<-as.numeric(sum(tmp)==length(tmp))
+  if (desctmp[3,jd]==desctmp[4,jd]){desctmp[8,jd]<-2}
+  if (desctmp[8,jd]==1)
+  { 
+   modvals<-matrix(c(desctmp[3,1],desctmp[4,1]))
+   mnotev<-0;minwarn<-0;maxwarn<-0
+  }
   if (type==0)
   {
    minwarn<-0;maxwarn<-0
-   tmp=as.numeric(descdat==desctmp[3,jd])+as.numeric(descdat==desctmp[4,jd])
-   desctmp[8,jd]<-as.numeric(sum(tmp)==length(tmp))
-   if (desctmp[3,jd]==desctmp[4,jd]){desctmp[8,jd]<-2}
-   descdat<-matrix(sort(descdat))
-   decval<-c(.16,.5,.84)
-   for (kd in c(1:3))
+   if ((quantle==1) & (desctmp[8,jd] != 1))
    {
-    low<-trunc(decval[kd]*(length(descdat)+1))
-    lowdec<-decval[kd]*(length(descdat)+1)-low
-    value<-descdat[low,1]+(descdat[(low+1),1]-descdat[low,1])*lowdec
-    desctmp[(4+kd),jd]<-value
+    descdat<-matrix(sort(descdat))
+    decval<-c(.16,.5,.84)
+    for (kd in c(1:3))
+    {
+     low<-trunc(decval[kd]*(length(descdat)+1))
+     lowdec<-decval[kd]*(length(descdat)+1)-low
+     value<-descdat[low,1]+(descdat[(low+1),1]-descdat[low,1])*lowdec
+     desctmp[(4+kd),jd]<-value
+    }
+    mnotev<-(1)
+    modvals<-matrix(desctmp[5:7,],ncol=ncol(descdatf))
    }
-   mnotev<-(1)
-   modvals<-matrix(desctmp[5:7,],ncol=ncol(descdatf))
-   if (quantle != 1)
+   if ((quantle != 1) & (desctmp[8,jd] != 1))
    {
     desctmp[5,jd]<-desctmp[1,jd]-desctmp[2,jd]
     desctmp[6,jd]<-desctmp[1,jd]
     desctmp[7,jd]<-desctmp[1,jd]+desctmp[2,jd]
     modvals<-matrix(desctmp[5:7,],ncol=ncol(descdatf))
     mnotev<-(2)
-    if (modvals[1,1] < desctmp[3,1]){modvals[1,1]<-desctmp[3,1];minwarn<-1}
-    if (modvals[3,1] > desctmp[4,1]){modvals[3,1]<-desctmp[4,1];maxwarn<-1}
-   }
-   if (desctmp[8,jd]==1)
-   {modvals<-matrix(c(desctmp[3,1],desctmp[4,1]))
-   mnotev<-0;minwarn<-0;maxwarn<-0
-   }
+    if (modvals[1,jd] < desctmp[3,jd]){modvals[1,jd]<-desctmp[3,jd];minwarn<-1}
+    if (modvals[3,jd] > desctmp[4,jd]){modvals[3,jd]<-desctmp[4,jd];maxwarn<-1}
+   }  
    descrtrn<-list(desctmp,modvals,minwarn,maxwarn,mnotev)
   }
  }
  if (type==1)
- {descrtrn<-list(desctmp)}
+ {descrtrn<-list(desctmp,modvals)}
  return(descrtrn)
 }
 
-process.ftest3<-function(lm,bcoef,cv=0,chr=0,brsq=0,skip=0,y,x)
+process.ftest3<-function(lm,bcoef,cv=0,chr=0,brsq=0,skip=0,y,x,nclus=999999999999999,dfres=9999999999)
 {
  lmat2<-as.matrix(lm)
  y<-as.matrix(y)
@@ -174,9 +174,21 @@ process.ftest3<-function(lm,bcoef,cv=0,chr=0,brsq=0,skip=0,y,x)
   }
   lmat2<-as.matrix(lmat3[,2:ncol(lmat3)])
  }
- fratio<-(t(t(lmat2)%*%bcoef)%*%solve(t(lmat2)%*%cv%*%lmat2)%*%((t(lmat2)%*%bcoef)))/ncol(lmat2)
- pfr<-(1-pf(fratio,ncol(lmat2),(n-nrow(bcoef))))
- fresult<-matrix(c(fratio,ncol(lmat2),(n-nrow(bcoef)),pfr),ncol=4)
+
+ fresult<-cbind(99999,99999,99999,99999)
+ rankofcv<-qr(cv)$rank
+ if ((ncol(lmat2) > rankofcv) | (ncol(lmat2) > (nclus-1))){intncd<-1}
+ if ((ncol(lmat2) <= rankofcv) & (ncol(lmat2) <= (nclus-1)))
+  {
+   fratio<-(t(t(lmat2)%*%bcoef)%*%solve(t(lmat2)%*%cv%*%lmat2)%*%((t(lmat2)%*%bcoef)))/ncol(lmat2)
+   pfr<-(1-pf(fratio,ncol(lmat2),dfres))
+   fresult<-matrix(c(fratio,ncol(lmat2),dfres,pfr),ncol=4)
+  }
+
+# fratio<-(t(t(lmat2)%*%bcoef)%*%solve(t(lmat2)%*%cv%*%lmat2)%*%((t(lmat2)%*%bcoef)))/ncol(lmat2)
+# pfr<-(1-pf(fratio,ncol(lmat2),(n-nrow(bcoef))))
+# fresult<-matrix(c(fratio,ncol(lmat2),(n-nrow(bcoef)),pfr),ncol=4)
+
  if (chr==1)
  {
   lmat3<-as.matrix(1-rowSums(lmat2))
@@ -187,9 +199,9 @@ process.ftest3<-function(lm,bcoef,cv=0,chr=0,brsq=0,skip=0,y,x)
    if (lmat3[flp,1]==1){xfm[,flpc]=x[,flp];flpc<-flpc+1}
   }
   bfm<-solve(t(xfm)%*%xfm)%*%t(xfm)%*%y
-  resid<-y-(xfm%*%bfm)
+  residy<-y-(xfm%*%bfm)
   sstotal<-t(y-(sum(y)/n))%*%(y-(sum(y)/n))
-  ssresid<-t(resid)%*%resid
+  ssresid<-t(residy)%*%residy  
   rsqch<-as.numeric(brsq)-((sstotal-ssresid)/sstotal)
   fresult<-matrix(c(rsqch,fresult),ncol=5)
  }
@@ -198,72 +210,329 @@ process.ftest3<-function(lm,bcoef,cv=0,chr=0,brsq=0,skip=0,y,x)
 }
 
 #type1 for ols, type2 for logistic LLR, type3 for logistic bootstrapping
-process.modelest<-function(y,x,type,full,xp2,hc=5,iterate=100,converge=.00001)
+
+process.modelest<-function(y,x,type,full,xp2,hc=5,iterate=100,converge=.00001,ssquares=0,robustse=0,clusdat=0,current=0,nclus=999999999999999,alpha2=.025,eivdo=0,releiv=0,eiv=2)
 {
+ eiverr<-0
+ intncd<-0
  if (type==1)
  {
+  n1<-nrow(x)
   invxtx<-solve(t(x)%*%x)
-  b<-invxtx%*%t(x)%*%y
-  modres<-b
+  hatmat<-invxtx%*%t(x)
+  if (eivdo==0){b<-hatmat%*%y}
+  if (eivdo==1)
+  {
+   relcorv<-1
+   #if (eiv > 9){relcorv<-(1-(ncol(x)/n1))}   
+   varx<-((n1*colSums(x*x))-(colSums(x)^2))/((n1-1)*n1)
+   varx<-t(matrix(varx*(n1-1)/n1))
+   varxr<-n1*(1-releiv)*varx
+   varxrd<-matrix(diag(as.numeric(varxr)),ncol=ncol(varxr))
+   aeiv<-(t(x)%*%x)-(relcorv)*varxrd
+   #here
+   itsh<-solve(aeiv)
+   hatval2<-matrix(0,n1,1)
+   #if ((eiv==5) | (eiv==6))
+   #{  
+   # for (i3 in (1:n1))
+   # {
+   #  hatval2[i3,1]<-t(matrix(x[i3,]))%*%itsh%*%matrix(x[i3,])
+   # }
+   #}
+   if ((eiv==2) | (eiv==3) | (eiv==12) | (eiv==13))
+   {  
+    for (i3 in (1:n1))
+    {
+     hatval2[i3,1]<-t(matrix(x[i3,]))%*%invxtx%*%matrix(x[i3,])
+    }
+   }
+   #end here
+   b<-itsh%*%t(x)%*%y
+   yeiv<-y
+   if (full==0)
+   {
+    mseb<-((t(y)%*%y)-(t(b)%*%aeiv%*%b))/(n1-ncol(x))
+    sstotalb<-t(y-(sum(y)/n1))%*%(y-(sum(y)/n1))
+    r2b<-1-((mseb*(n1-ncol(x)))/sstotalb)
+    if ((r2b < 0) | (mseb < 0))
+    {eiverr<-1}
+   }
+  }
+   modres<-b
+
   if (full==1)
   {
-   n1<-nrow(x)
-   dfres<-(n1-(ncol(x)))
-   sstotal<-t(y-(sum(y)/n1))%*%(y-(sum(y)/n1))
-   resid=y-x%*%b
-   ssresid<-sum(t(resid)%*%resid)       
-   r2<-(sstotal-ssresid)/sstotal
-   adjr2<-(1-((1-r2)*(n1-1)/(dfres)))
-   mse<-ssresid/(n1-ncol(x))
-   #HC covariance matrix
-   varb<-mse*invxtx
-   k3<-ncol(x)
-   xhc<-0
-   if (hc != 5)
+   if (eivdo==1)
    {
-    xhc<-x
-    hat<-matrix(xhc[,1])
-    for (i3 in c(1:nrow(xhc)))
+    mse<-((t(y)%*%y)-(t(b)%*%aeiv%*%b))/(n1-ncol(x))
+    sstotal<-t(y-(sum(y)/n1))%*%(y-(sum(y)/n1))
+    r2<-1-((mse*(n1-ncol(x)))/sstotal)
+    if ((r2 < 0) | (mse < 0))
     {
-     xhcm<-matrix(xhc[i3,])
-     hat[i3,1]<-t(xhcm)%*%invxtx%*%xhcm
-    }     
-    if ((hc==0) | (hc==1))
-    {
-     for (i3 in c(1:k3)){xhc[,i3]<-xhc[,i3]*resid}
+     eiverr<-1
     }
-    if ((hc==3) | (hc==2))
+    if (((eiv==5) | (eiv==15)) & (eiverr==0))
+    {varb<-as.numeric(mse)*solve(aeiv)%*%t(x)%*%x%*%solve(aeiv)}
+    if (((eiv==4) | (eiv==14)) & (eiverr==0))
     {
-     for (i3 in c(1:k3))
-     {xhc[,i3]<-(resid/(1-hat)^(1/(4-hc)))*xhc[,i3]}
+     varxr2<-matrix(diag(as.numeric(varxr)),ncol=ncol(varxr))
+     eivtmp<-(t(b)%*%varxr2)^2
+     eivtmp<-matrix(diag(as.numeric(eivtmp)),ncol=ncol(varxr))
+     varb<-(as.numeric(mse)*solve(aeiv))+((solve(aeiv)/n1)%*%((varxr2*as.numeric(mse))+(varxr2%*%b%*%t(b)%*%varxr2)+2*eivtmp)%*%solve(aeiv))
     }
-    if (hc==4)
+    if (((eiv==0) | (eiv==1) | (eiv==2) | (eiv==3) | (eiv==10) | (eiv==11) | (eiv==12) | (eiv==13)) & (eiverr==0))
     {
-     hcmn<-matrix(4,n1,2);hcmn[,2]<-(n1*hat)/k3
-     minr<-apply(hcmn,1,FUN=min)
-     for (i3 in c(1:k3))
+     resideiv<-yeiv-x%*%b
+     hb1eiv<-x;
+     hb2eiv<-x;
+     for (ieiv in (1:ncol(x)))
      {
-      xhc[,i3]<-(resid/(1-hat)^(minr/2))*xhc[,i3]
+       if ((eiv==3) | (eiv==0) | (eiv==1) | (eiv==13) | (eiv==10) | (eiv==11)){hb1eiv[,ieiv]<-hb1eiv[,ieiv]*(resideiv/(1-hatval2))}
+       if ((eiv==2) | (eiv==12)){hb1eiv[,ieiv]<-hb1eiv[,ieiv]*(resideiv/sqrt((1-hatval2)))}
+	 cstmp1<-x[,ieiv]
+       xmeaneiv<-sum(cstmp1)/n1
+       xmeaneiv<-matrix(xmeaneiv,n1,1)
+       hb2eiv[,ieiv]<-(hb2eiv[,ieiv]-xmeaneiv)^2
      }
+     hbeiv<-((1-releiv)*t(b))
+     hbeiv<-matrix(diag(as.numeric(hbeiv)),ncol=ncol(hbeiv))
+     hb3eiv<-matrix(1,n1,ncol(x))
+     hb3eiv<-hb3eiv%*%hbeiv
+     Heiv<-hb1eiv+(hb2eiv*hb3eiv)
+     varb<-solve(aeiv)%*%t(Heiv)%*%Heiv%*%solve(aeiv)
+     if ((eiv==1) | (eiv==11))
+     {varb<-varb*(n1/(n1-ncol(x)))}
+     rm(hb1eiv);rm(hb2eiv);rm(hb3eiv);rm(cstmp1)
     }
-    varb<-(invxtx%*%t(xhc)%*%xhc%*%invxtx)
-    if (hc==1){varb<-(n1/(n1-ncol(x)))*varb}
+    hclab<-"se";hcflab<-"F";adjr2<-0
+    dfres<-(n1-(ncol(x)))*(1-robustse)+((nclus-1)*robustse)   
    }
-   seb<-sqrt(diag(varb))
-   trat<-b/seb
-   p<-2*pt(-abs(trat),df=dfres)
-   tval<-sqrt(dfres* (exp((dfres-(5/6))*((xp2/(dfres-(2/3)+(.11/dfres)))*(xp2/(dfres-(2/3)+(.11/dfres)))))-1))
-   modres<-matrix(c(modres,seb, trat,p,(b-tval*seb),(b+tval*seb)),ncol=6)
-   modresl<-t(matrix(c("coeff","hclab","t","p","LLCI","ULCI")))
-   lmat<-diag(ncol(x));lmat<-lmat[,2:ncol(lmat)]
-   fratio<-(t(t(lmat)%*%b)%*%solve(t(lmat)%*%varb%*%lmat)%*%((t(lmat)%*%b)))/(ncol(x)-1)
-   pfr<-1-pf(fratio,(ncol(x)-1),dfres)
-   modsum=matrix(c(sqrt(r2),r2,mse,fratio,(ncol(x)-1),dfres,pfr))
-   modsuml=matrix(c("R","R-sq","MSE","hcflab","df1","df2", "p"))
-   modretrn<-list(modres,modresl,modsum,modsuml,b,varb,tval,resid)
-   return(modretrn)
+   #start eiv1
+   if (eivdo==0)
+   {   
+    ypredv<-x%*%b
+    yresid<-(y-x%*%b)
+    resid<-(y-ypredv)
+    #hatval<-diag(x%*%hatmat)
+    hatval<-matrix(0,n1,1)
+    for (i3 in (1:n1))
+    {
+     hatval[i3,1]<-t(matrix(x[i3,]))%*%invxtx%*%matrix(x[i3,])
+    }
+    yh<-((x%*%b)-hatval*y)/(1-hatval)
+    ex<-resid/(1-hatval)
+    #modresdf=t(hatmat%*%diag(as.numeric(ex)))
+    modresdf<-matrix(0,n1,ncol(x))
+    for (i3 in (1:ncol(x)))
+    {
+     modresdf[,i3]<-matrix(hatmat[i3,])*matrix(ex)
+    }
+    dfres<-(n1-(ncol(x)))*(1-robustse)+((nclus-1)*robustse)
+    sstotal<-t(y-(sum(y)/n1))%*%(y-(sum(y)/n1))
+    ssresid<-sum(t(resid)%*%resid)
+    mse<-ssresid/(n1-ncol(x))
+    cbres<-resid^3;cbres<-sum(cbres)
+    qbres<-resid^4;qbres<-sum(qbres)
+    skewres2<-(n1*cbres)/((n1-2)*ssresid*sqrt(ssresid/(n1-1)))
+    kurtres<-(((n1+1)*n1*(n1-1))/((n1-2)*(n1-3)))*(qbres/(ssresid*ssresid))
+    kurtres<-kurtres-(3*((n1-1)*(n1-1))/((n1-2)*(n1-3)))
+    skewse<-sqrt(((6*n1)*(n1-1))/((n1-2)*(n1+1)*(n1+3)))
+    kurtse<-sqrt((24*n1*(n1-1)*(n1-1))/((n1-3)*(n1-2)*(n1+3)*(n1+5)))
+    skewres<-matrix(0,2,2);skewres[1,1]<-skewres2;skewres[1,2]<-kurtres
+    skewres[2,1]<-skewse;skewres[2,2]<-kurtse
+    ssreg<-sstotal-ssresid       
+    r2<-(sstotal-ssresid)/sstotal
+    sumtable<-c(ssreg,(ncol(x)-1),(ssreg/(ncol(x)-1)),ssresid,(n1-(ncol(x))),(ssresid/(n1-(ncol(x)))),
+      sstotal,(n1-1),sstotal/(n1-1))
+    sumtable<-t(matrix(sumtable,nrow=3))
+    if (r2 < 0){r2<-0}
+    adjr2<-(1-((1-r2)*(n1-1)/(n1-ncol(x))))
+    mndevy<-matrix((y-(sum(y)/n1)))
+    msresch<-((matrix(ex)*matrix(resid))-mse)/(n1-ncol(x)-1) 
+    skewwo<-matrix(9999,n1,1)
+    #scresnoi<-matrix(0,n1,1)
+    #for (wadf2 in (c(1:nrow(modresdf))))
+    #{
+    # cresnoi<-(y-(x%*%(b-matrix(t(modresdf[wadf2,])))))^3
+    # scresnoi[wadf2,1]<-(n1-1)*(colSums(cresnoi)-cresnoi[wadf2,1])
+    #}
+    #denomsk<-(n1-3)*(ssresid-(ex*resid))*sqrt((ssresid-(ex*resid))/(n1-2))     
+    #skewwo<-skewres[1,1]-(scresnoi/denomsk)
+    rchngwo<-matrix(r2,n1,1)-(1-((matrix(ssresid,n1,1)-(matrix(ex)*matrix(resid)))/(matrix(sstotal,n1,1)-((n1*(mndevy*mndevy))/(n1-1)))))
+    stri<-matrix(resid/sqrt((1-hatval)*mse))
+    tri<-matrix(stri*sqrt(((n1-ncol(x))-1)/((n1-ncol(x))-(stri*stri))))
+    mahal<-(n1*hatval-1)*((n1-1)/n1)
+    cook<-(stri*stri)*(hatval/((1-hatval)*(ncol(x))))
+    regdiag<-matrix(cbind(x,y,ypredv,resid,ex,stri,tri,hatval,mahal,cook,msresch,rchngwo,skewwo,modresdf),nrow=n1) 
+    ptri<-2*(pt(-abs(tri),((n1-ncol(x))-1)))
+    bp<-n1*ptri
+    bpm<-(bp-1)
+    bp<-bp-(bpm*as.numeric(bp > 1))
+    bp<-as.matrix(cbind(abs(tri),bp))  
+    sqruncr=ssresid/n1   
+    qprime<-matrix(((resid*resid)-sqruncr)/sqruncr)
+    bptest=0.5*(t(qprime)%*%x%*%hatmat%*%qprime)
+    bprobust=bptest*(2/((t(qprime)%*%qprime)/n1))
+    bpresult<-matrix(-999,2,3)
+    bpresult[1,1]<-bptest;bpresult[1,2]<-(ncol(x)-1);bpresult[1,3]<-(1-pchisq(bptest,df=(ncol(x)-1)))
+    bpresult[2,1]<-bprobust;bpresult[2,2]<-bpresult[1,2];bpresult[2,3]<-(1-pchisq(bprobust,df=(ncol(x)-1)))
+    sehomo<-matrix(sqrt(diag(mse*invxtx)))
+    #msreg<-ssreg/ncol(x)
+    #HC covariance matrix
+    varb<-mse*invxtx
+    k3<-ncol(x)
+    xhc<-0
+    if (hc==6)
+    {
+     xcrub<-cbind(clusdat[,3],x,resid)
+     xcrub<-xcrub[order(xcrub[,1]),]
+     crres<-matrix(xcrub[,ncol(xcrub)])
+     xcrub<-xcrub[,2:(ncol(xcrub)-1)]
+     meat<-matrix(0,ncol(xcrub),ncol(xcrub))
+     for (clbt in c(1:nclus))
+     {
+      xmeat<-matrix(xcrub[current[clbt,3]:current[clbt,4],],ncol=ncol(xcrub))
+      meate<-matrix(crres[current[clbt,3]:current[clbt,4],1])
+      meat<-meat+(t(xmeat)%*%meate%*%t(meate)%*%xmeat)
+     }
+     varb<-(invxtx%*%meat%*%invxtx)*((nclus/(nclus-1))*((n1-1))/(n1-ncol(xcrub)))
+     rm(xcrub);rm(crres)
+    }
+    if (hc < 5)
+    {
+     xhc<-x
+     hat<-matrix(xhc[,1])
+     for (i3 in c(1:nrow(xhc)))
+     {
+      xhcm<-matrix(xhc[i3,])
+      hat[i3,1]<-t(xhcm)%*%invxtx%*%xhcm
+     }     
+     if ((hc==0) | (hc==1))
+     {
+      for (i3 in c(1:k3)){xhc[,i3]<-xhc[,i3]*resid}
+     }
+     if ((hc==3) | (hc==2))
+     {
+      for (i3 in c(1:k3))
+      {xhc[,i3]<-(resid/(1-hat)^(1/(4-hc)))*xhc[,i3]}
+     }
+     if (hc==4)
+     {
+      hcmn<-matrix(4,n1,2);hcmn[,2]<-(n1*hat)/k3
+      minr<-apply(hcmn,1,FUN=min)
+      for (i3 in c(1:k3))
+      {
+       xhc[,i3]<-(resid/(1-hat)^(minr/2))*xhc[,i3]
+      }
+     }
+     varb<-(invxtx%*%t(xhc)%*%xhc%*%invxtx)
+     if (hc==1){varb<-(n1/(n1-ncol(x)))*varb}
+    }
+   } 
+   #end eiv1
+
+   if (eiverr==0)
+   {
+    seb<-sqrt(diag(varb))
+    trat<-b/seb
+    p<-2*pt(-abs(trat),df=dfres)
+    #tval<-sqrt(dfres* (exp((dfres-(5/6))*((xp2/(dfres-(2/3)+(.11/dfres)))*(xp2/(dfres-(2/3)+(.11/dfres)))))-1))
+    tval<-(-qt(alpha2,dfres))
+    modres<-matrix(c(modres,seb, trat,p,(b-tval*seb),(b+tval*seb)),ncol=6)
+    modresl<-t(matrix(c("coeff","hclab","t","p","LLCI","ULCI")))
+    lmat<-diag(ncol(x));lmat<-matrix(lmat[,2:ncol(lmat)],nrow=nrow(modres))
+    #fratio<-(t(t(lmat)%*%b)%*%solve(t(lmat)%*%varb%*%lmat)%*%((t(lmat)%*%b)))/(ncol(x)-1)
+    #pfr<-1-pf(fratio,(ncol(x)-1),dfres)
+    modsum<-matrix(c(sqrt(r2),r2,adjr2,99999,99999,sqrt(mse)))
+    modsuml<-matrix(c("R","R-sq","Adj R-sq","hcflab","p","SEest"))
+    rankofvb<-qr(varb)$rank
+    if ((ncol(lmat) > rankofvb) | (ncol(lmat) > (nclus-1)))
+    {intncd<-1}    
+    if ((ncol(lmat) <= rankofvb) & (ncol(lmat) <= (nclus-1)))
+    {
+     fratio<-(t(t(lmat)%*%b)%*%solve(t(lmat)%*%varb%*%lmat)%*%((t(lmat)%*%b)))/(ncol(x)-1)
+     pfr<-1-pf(fratio,(ncol(x)-1),dfres)
+     modsum<-matrix(c(sqrt(r2),r2,adjr2,fratio,pfr,sqrt(mse)))
+    }
+   }
+
+   #start eiv2;
+   if (eivdo==0)
+   {
+    srrat<-matrix(b/sehomo)
+    sign<-matrix(b/abs(b))
+    semir<-srrat*(as.numeric(sqrt((1-r2)/((n1-ncol(x))))))     
+    partialr<-matrix(sqrt((srrat*srrat)/((srrat*srrat)+(n1-ncol(x))))*sign)
+    browne<-0;iv5<-cbind(y,yh);corall<-cor(iv5);lvout1<-corall[2,1]
+    if (adjr2 >= 0)
+    {rho4<-(adjr2*adjr2)-((2*(ncol(x)-1)*(1-adjr2)*(1-adjr2))/((n1-1)*(n1-(ncol(x)-1)+1)))
+     if (rho4 >= 0)
+     {browne<-sqrt(((n1-(ncol(x)-1)-3)*rho4+adjr2)/((n1-2*(ncol(x)-1)-2)*adjr2+(ncol(x)-1)))}
+    }
+    newsse<-ssresid*(n1-(ncol(x)-1)-2)/((tri*tri)+n1-(ncol(x)-1)-2) 
+    mycv<-(sum(y)/n1)*matrix(1,length(y),1)
+    dleave<-matrix((mycv-y)/(n1-1))
+    yd<-matrix((y-mycv))
+    newtss<-(as.numeric(sstotal)*matrix(1,length(y),1))+(n1*(dleave*dleave))-((y-mycv-dleave)*(y-mycv-dleave))
+    newvhaty<-(newtss/n1)*(1-newsse/newtss)
+    zh<-(yh-dleave-mycv)/sqrt(newvhaty)                      
+    temptxd<-cbind(y,x[,2:ncol(x)],yh,zh)
+    sdvec<-matrix(apply(temptxd,2,sd))
+    corall<-cor(temptxd)
+    corbxx<-matrix(corall[2:ncol(x),2:ncol(x)],nrow=(ncol(x)-1))
+    tolstat<-matrix(9999,(ncol(x)-1),1)
+    for (tolcom in c(1:(ncol(x)-1)))
+    {
+     riichoose<-diag(ncol(x)-1)
+     riichoose[tolcom,tolcom]<-0
+     riix<-riichoose%*%corbxx%*%t(riichoose)
+     riix[tolcom,tolcom]<-1
+     riiy<-matrix(corbxx[,tolcom])*matrix(diag(riichoose))
+     tolstat[tolcom,1]<-matrix(1-(t(riiy)%*%solve(riix)%*%riiy))
+    }
+    sdvec<-matrix(sdvec[1:(nrow(sdvec)-2),1])
+    tildeb<-(modres[,1]*sdvec)/sdvec[1,1]
+    tildeby<-modres[,1]/sdvec[1,1]
+    tildebx<-modres[,1]*sdvec;
+    crossr<-cbind(browne,corall[(nrow(corall)-1),1],corall[nrow(corall),1])
+    zppout<-cbind(corall[1:(nrow(corall)-2),1],semir,partialr,tildeb,tildeby,tildebx)
+    zppout<-matrix(zppout[2:nrow(zppout),],nrow=(nrow(zppout)-1))
+    zppout2<-cbind(matrix(zppout[,2]^2),matrix(zppout[,3]^2),matrix((zppout[,2]^2)/matrix((1-r2),nrow(zppout),1)))
+   }
+   #end eiv2;
+
+   if ((ssquares==0) & (eiverr==0))
+   {
+    modsum<-matrix(c(sqrt(r2),r2,mse,99999,99999,99999,99999))
+    modsuml<-matrix(c("R","R-sq","MSE","hcflab","df1","df2","p"))
+    if ((ncol(lmat) <= rankofvb) & (ncol(lmat) <= (nclus-1)))
+    {
+     modsum<-matrix(c(sqrt(r2),r2,mse,fratio,(ncol(x)-1),dfres,pfr))
+     if (eivdo==1)
+     {modsuml<-matrix(modsuml[2:nrow(modsuml),1]);modsum<-matrix(modsum[2:nrow(modsum),1])}
+    }
+   }
+   if (eivdo==0)
+   {
+    maxnmin<-matrix(-999,3,2);maxnmin[1,1]<-min(ypredv);maxnmin[1,2]<-max(ypredv);
+    maxnmin[2,1]<-min(resid);maxnmin[2,2]<-max(resid);maxnmin[3,1]<-min(tri);maxnmin[3,2]<-max(tri)  
+    modretrn<-list(modres,modresl,modsum,modsuml,b,varb,tval,resid,sumtable,crossr,zppout,corall,regdiag,bp,maxnmin,bpresult,qprime,modresdf,zppout2,tolstat,dfres,skewres,intncd)
+    return(modretrn)
+   }
+   if ((eivdo==1) & (eiverr==0))
+   {
+    modretrn<-list(modres,modresl,modsum,modsuml,b,varb,tval,0,0,0,0,0,0,0,0,0,0,0,0,0,dfres,0,intncd)
+    return(modretrn)
+   }
+   if ((eivdo==1) & (eiverr==1))
+   {
+    return(eiverr)
+   }
   }
-  if (full==0){return(modres)} 
+  if ((full==0) & (eiverr==0)){return(modres)}
+  if ((full==0) & (eiverr==1))
+   {return(eiverr)}
  }
  #for logistic Y model
  if ((type==2) | (type==3))
@@ -462,31 +731,53 @@ process.makdummy<-function(dd,method,custcov=0,custcode=999)
 }
 
 
-
-process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xxxxx",
+process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xxxxx",cluster="xxxxx",
       model=999,converge=.00001,iterate=100,hc=5,jn=0,effsize=0,stand=0,xmtest=0,normal=0,
-      mdichok=0,contrast=999,modelbt=0,matrices=0,covmy=0,covcoeff=0,boot=5000,mc=0,
+      mdichok=0,contrast=999,modelbt=0,matrices=0,covmy=0,covcoeff=0,boot=5000,mc=0,spline=-999,
       intprobe=0.1,plot=0,total=0,save=0,mcx=0,mcw=0,mcz=0,moments=0,progress=1,exclude=0,
-      bmatrix=-999,wmatrix=-999,zmatrix=-999,wzmatrix=-999,cmatrix=-999,xcatcode=999,
-      wcatcode=999,zcatcode=999,wmodval=999,zmodval=999,center=0,conf=95,seed=-999,
-      decimals=9.4,maxboot=0,modelres=0,bc=0,outscreen=1,activate=0,describe=0,listmiss=0,
-      linsum=-999,xmint=0,xrefval=999,coval=-999,cdeval=-999)
+      bmatrix=-999,wmatrix=-999,zmatrix=-999,wzmatrix=-999,cmatrix=-999,xcatcode=999,subsets=0,
+      wcatcode=999,zcatcode=999,wmodval=999,zmodval=999,center=0,conf=95,seed=-999,ssquares=9,
+      decimals=9.4,maxboot=0,modelres=0,bc=0,outscreen=1,activate=0,describe=0,listmiss=0,diagnose=0,
+      linsum=-999,xmint=0,xrefval=999,coval=-999,cdeval=-999,crossv=0,settest=0,zpp=0,dominate=0,
+      robustse=0,clusboot=0,eiv=3,relx=-999,relm=-999,relcov=-999)
 {
 
  #all this is initiation of variables and matrices
- ranseed<-0;
+ ranseed<-0
+ eiverr<-0
  if (seed != -999)
  {seed<-trunc(abs(seed));set.seed(seed)}
  wnames<-w;znames<-z;mcerpt<-0;wiscov<-0;ziscov<-0;itprobtg<-0;
+  
  v2tag<-0;maxwwarn<-0;minwwarn<-0;maxzwarn<-0;minzwarn<-0
  toomany<-0;wdich<-0;zdich<-0;wnotev<-0;znotev<-0;singlr<-0
  nxpval<-1;nwpval<-1;nzpval<-1;errs<-1;notes<-1;criterr<-0
- novar<-0;adjust<-0;ncs<-0;serial<-0;sobelok<-0;hasw<-0;ydich<-0;
- hasz<-0;printw<-0;printz<-0;xmint<-as.numeric(xmint==1);
- wmodcust<-0;zmodcust<-0
+ novar<-0;adjust<-0;ncs<-0;serial<-0;sobelok<-0;hasw<-0;ydich<-0 
+ sv4match<-0;nclsv<-0;
+ hasz<-0;printw<-0;printz<-0;eiv<-trunc(eiv)
+ relx<-t(matrix(relx));relm<-t(matrix(relm));relcov<-t(matrix(relcov));
+ yrelx<-0;yrelm<-0;yrelcov<-0;relxphm<-0;
+ if (relx[1,1] !=-999){yrelx<-1}
+ if (relx[1,1]==-999){relx<-matrix(1)}
+ if (relm[1,1] !=-999){yrelm<-1}
+ if (relm[1,1]==-999){relm<-matrix(1)}
+ if (relcov[1,1] !=-999){yrelcov<-1}
+ if (relcov[1,1]==-999){relcov<-matrix(1)}
+ eivbad<-0;eivdo<-0;fulldatr<-matrix(0)
+ xmint<-as.numeric(xmint==1)
+ diagnose<-as.numeric(diagnose==1)
+ settest<-as.numeric(settest==1)
+ zpp<-as.numeric(zpp==1);setxcat<-0
+ subsets<-as.numeric(subsets==1);dominate<-as.numeric(dominate==1)
+ crossv<-as.numeric(crossv==1)
+ wmodcust<-0;zmodcust<-0;badboot<-0;eiverrc<-0;eiverc<-0;eivhcnt<-0
+ regdiag<-NULL
+ diagout<-NULL
+ boots<-NULL
+ savlabs<-matrix(" ",200,1);savlabsc<-1;
  booting<-0;bootiter<-0;iterrmod<-0;model<-trunc(model)
  errcode<-matrix(0,100,1);notecode<-matrix(0,100,1)
- iterate<-abs(trunc(iterate));converge=abs(converge);badend<-0;booterr<-0;
+ iterate<-abs(trunc(iterate));converge=abs(converge);badend<-0;booterr<-0
  itprobtg<-0;v2tag<-0;maxwwarn<-0;minwwarn<-0;maxzwarn<-0
  minzwarn<-0;toomany<-0;wdich<-0;zdich<-0;wnotev<-0;znotev<-0
  nws<-0;nzs<-0;nms<-0;nys<-0;nxs<-0;maxresm<-9;bc<-as.numeric(bc==1);progress<-as.numeric(progress==1)
@@ -494,9 +785,21 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  jn<-as.numeric(jn==1);effsize<-as.numeric(effsize==1);maxboots=abs(trunc(maxboot))
  normal<-as.numeric(normal==1);xmtest<-as.numeric(xmtest==1);modelres<-as.numeric(modelres==1)
  stand<-as.numeric(stand==1);outscreen<-as.numeric(outscreen==1);activate<-as.numeric(activate==1)
- xrefvals<-t(matrix(xrefval));xcontcf<-0;xscaling<-1;
+ xrefvals<-t(matrix(xrefval));xcontcf<-0;xscaling<-1;spl<-t(matrix(spline))
  cdeval<-t(matrix(cdeval))
- cuscoval=0
+ robustse<-as.numeric(robustse==1);clusboot<-trunc(clusboot);
+ nclus<-999999999999999
+ cuscoval<-0
+ current<-matrix(99999);clusdat<-matrix(99999)
+
+ nspl<-ncol(spl)
+ if ((eiv < 0) | (eiv > 5) | (eiv==4))
+  {errcode[errs,1]<-88;errs<-errs+1;criterr<-1}
+ if (spl[1,1]==-999){nspl<-0}
+ bmatrix<-t(matrix(bmatrix))
+ xnck=matrix(x);ynck=matrix(y);wnck=matrix(w);znck=matrix(z);mnck=matrix(m);cnck=matrix(cov);clnck=matrix(cluster)
+ if ((xnck[1,1] != "xxxxx") & (ynck[1,1] != "xxxxx") & (mnck[1,1] != "xxxxx") & (znck[1,1]=="xxxxx") & (wnck[1,1]=="xxxxx") & (model==999) & (bmatrix[1,1]==-999))
+  {model<-4}
  if (model==74)
   {errcode[errs,1]<-7;errs<-errs+1;criterr<-1}
  if ((xmint==1) & (model != 4))
@@ -561,15 +864,12 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  total<-as.numeric(total==1)
  dototal<-0
  saveboot<-as.numeric((save==1)|(save==3))
- saveest<-as.numeric(save > 1)
+ saveest<-as.numeric((save==2)|(save==3))
+ savediag<-as.numeric(save==4)
  if (saveest==1){intprobe=1}
- if ((hc >=0) & (hc < 5)) {notecode[notes,1]<-4;notes=notes+1}
+ if ((hc >=0) & (hc < 5) & (robustse==0)) {notecode[notes,1]<-4;notes=notes+1}
  if ((hc > 5) | (hc < 0)) {hc=5}
  ####dont use these when y is dichotomous
- hclab<-matrix(c("se(HC0)","se(HC1)","se(HC2)","se(HC3)","se(HC4)","se"))
- hclab<-hclab[(hc+1),1]
- hcflab<-matrix(c("F(HC0)","F(HC1)","F(HC2)","F(HC3)","F(HC4)","F"))
- hcflab<-hcflab[(hc+1),1] 
  mcw=trunc(mcw);mcz=trunc(mcz);mcx=trunc(mcx);
  if ((mcx > 0) & (mcx < 3) &(model==74)) {mcw<-mcx;xscaling<-1}
  if ((mcx > 2) & (model==74))
@@ -583,15 +883,26 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  pathswz<-matrix(999);pathsmod<-matrix(999);pathtype<-matrix(999);obscoeff<-999;
  pathsdv=matrix(" ");quantile<-1;moments=as.numeric(moments==1)
  if (moments==1){quantile<-0}
- bmatrix=t(matrix(bmatrix));wmatrix=t(matrix(wmatrix));zmatrix=t(matrix(zmatrix));
+ wmatrix=t(matrix(wmatrix));zmatrix=t(matrix(zmatrix));
  wzmatrix=t(matrix(wzmatrix));cmatrix=t(matrix(cmatrix));xcatcode=t(matrix(xcatcode));
  wcatcode=t(matrix(wcatcode));zcatcode=t(matrix(zcatcode));
  needed<-0
+ if ((clnck[1,1]=="xxxxx") & ((robustse != 0) | (clusboot != 0)))
+ {errcode[errs,1]<-79;errs<-errs+1;criterr<-1}
+ if ((xnck[1,1] != "xxxxx") & (ynck[1,1] != "xxxxx") & (wnck[1,1]=="xxxxx") & (znck[1,1]=="xxxxx") & (mnck[1,1]=="xxxxx") & ((model==999) | (model==0)))
+   {
+    model<-0;total<-0;dototal<-0
+    if (ssquares==9){ssquares<-1}
+   }
+ intncd<-0 
+ if ((xnck[1,1] != "xxxxx") & (ynck[1,1] != "xxxxx") & (wnck[1,1] != "xxxxx") & (znck[1,1]=="xxxxx") & (mnck[1,1]=="xxxxx") & (model==999))
+  {model<-1}
+ ssquares<-as.numeric(ssquares==1);
  decimals<-paste("%",decimals,"f",sep='')
  if ((trunc(conf) >= 100) | (trunc(conf <= 50)))
   {conf=95;notecode[notes,1]<-2;notes=notes+1}
  if ((model >= 0)  & (model < 4) & (modelbt==0)) {boot<-0;mc<-0;bc<-0;saveboot<-0}
- if ((boot > 0) & (mc > 0)) {boot<-0;bc<-0}
+ if ((boot > 0) & (mc > 0)) {boot<-0;bc<-0;clusboot<-0}
  if ((boot < 1000) & (boot > 0) & (mc==0)){boot=5000}
  if ((mc < 1000) & (mc > 0) & (boot==0)){mc=5000}
 
@@ -599,13 +910,11 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
 #if ((model > 0) & (model < 4) & ((boot = 98765) | (mc > 0))) then;do;boot=0;mc=0;bc=0;end;
 #if ((boot = 98765) & (mc = 0)) then;do;boot=5000;end;
 
- p0<- -.322232431088;p1<- -1;p2<- -.342242088547;p3<- -.0204231210245;
- p4<- -.0000453642210148;q0<- .0993484626060;q1<- .588581570495;
- q2<- .531103462366;q3<- .103537752850;q4<- .0038560700634;
  priorlo<-(-9999999);priorhi<-9999999
- alpha2<-(1-(conf/100))/2;cilm<-alpha2*2;y5<-sqrt(-2*log(alpha2));
- xp2=(y5+((((y5*p4+p3)*y5+p2)*y5+p1)*y5+p0)/((((y5*q4+q3)*y5+q2)*y5+q1)*y5+q0))
- medlb=matrix(c("   M1 :","   M2 :","   M3 :","   M4 :","   M5 :","   M6 :","   M7 :","   M8 :","   M9 :","  M10 :"))
+ alpha2<-(1-(conf/100))/2;cilm<-alpha2*2;
+ xp2<-(-qnorm(alpha2))
+
+ medlb=matrix(c("     M1:","     M2:","     M3:","     M4:","     M5:","     M6:","     M7:","     M8:","     M9:","    M10:"))
  medlb2=matrix(c("(M1)","(M2)","(M3)","(M4)","(M5)","(M6)","(M7)","(M8)","(M9)","(M10)"))
  xlb=matrix(c("X1 :","X2 :","X3 :","X4 :","X5 :","X6 :","X7 :","X8 :","X9 :","X10:"))
  highlbw=matrix(c("M1*W","M2*W","M3*W","M4*W","M5*W","M6*W","M7*W","M8*W","M9*W","M10*W"))
@@ -616,8 +925,8 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  highlbx=matrix(c("M1*X","M2*X","M3*X","M4*X","M5*X","M6*X","M7*X","M8*X","M9*X","M10*X"))
  highlbbt=matrix(c("BOTH(M1)","BOTH(M2)","BOTH(M3)","BOTH(M4)","BOTH(M5)","BOTH(M6)","BOTH(M7)","BOTH(M8)","BOTH(M9)","BTH(M10)"))
  skipwz=0
- xnck=matrix(x);ynck=matrix(y);wnck=matrix(w);znck=matrix(z);mnck=matrix(m);cnck=matrix(cov)
- if ((nrow(xnck)>1) | (nrow(ynck)>1) | (nrow(wnck)>1) | (nrow(znck)>1))
+
+ if ((nrow(ynck)>1) | (nrow(wnck)>1) | (nrow(znck)>1) | (nrow(clnck)>1) | ((nrow(xnck)>1) & (model !=0)))
   {errcode[errs,1]<-3;errs<-errs+1;criterr<-1}
 
 
@@ -637,6 +946,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      errcode[errs,1]<-6;errs<-errs+1;criterr<-1
     }
    }
+
   if (((model > 92) | (model < 0)) & (model != 999))
    {errcode[errs,1]<-7;errs<-errs+1;criterr<-1}
   if ((model==999) & (bmatrix[1,1]==-999))
@@ -645,9 +955,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    {errcode[errs,1]<-25;errs<-errs+1;criterr<-1}
   if (((model==74) | ((model > 0) & (model < 4))) & ((wmatrix[1,1] !=-999) | (zmatrix[1,1] != -999) | (wzmatrix[1,1] != -999)))
     {errcode[errs,1]<-41;errs<-errs+1;criterr<-1}
-  if ((y=="xxxxx") | (x=="xxxxx"))
+  if ((y=="xxxxx") | (xnck[1,1]=="xxxxx"))
     {errcode[errs,1]<-1;errs<-errs+1;criterr<-1}
-  if ((mnck[1,1]=="xxxxx") & (model > 3))
+  if ((mnck[1,1]=="xxxxx") & (model > 3) & (model != 999))
     {errcode[errs,1]<-8;errs<-errs+1;criterr<-1}
  } 
  #end of check for major errors in syntax
@@ -664,16 +974,44 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   modelvar<-matrix(c(model,ynames))
   if (xmint==1)
   {modelvar[1,1]="4"}
-  if (model==999){modelvar[1,1]="CUSTOM"}
-
+  if (model==999)
+   {
+    modelvar[1,1]="CUSTOM"
+    if (model==0){modelvar[1,1]="0"}
+    if (model==1){modelvar[1,1]="1"}
+    if ((model==4) | (model==74)){modelvar[1,1]="4"}
+   }
+  xmodelbs=matrix(c("      X:"))
   #read x data
-  xtmp<-data[x];
-  nxs<-ncol(xtmp);needed<-needed+nxs;
-  dat<-cbind(dat,xtmp)
-  xnames<-matrix(x);n<-nrow(xtmp);xcatlab<-xnames;
+  xtmp<-data[x]
+  nxs<-ncol(xtmp)
+  if ((ncol(relx) != nxs) & (yrelx==1) & (eivbad==0))
+    {errcode[errs,1]<-83;errs<-errs+1;criterr<-1;eivbad<-1}
+  if ((yrelx==1) & (eivbad==0)){eivdo<-1}
+  xnames<-matrix(x)
+  nxset<-nxs;xtraxs<-0;xnames2<-xnames;xfakecov<-0;
+  if ((nxs > 1) & (model==0))
+   {
+    xotmp<-as.matrix(xtmp[,2:ncol(xtmp)])
+    xfakecov<-ncol(xotmp)
+    ncs<-xfakecov
+    xonames<-matrix(xnames[2:nrow(xnames),1])
+    covnames<-matrix(xonames)
+    if (yrelx==0){relx<-matrix(1,1,nxs)}
+    if (eivbad==0)
+     {relxph<-t(matrix(relx[1,2:ncol(relx)]));relxphm<-1;relx<-matrix(relx[1,1])}
+    xtralbs<-matrix("        ",(ncol(xtmp)-1),1)
+    xtmp<-xtmp[,1];xtraxs=1;nxs<-1;
+    xmodelbs<-rbind(xmodelbs,xtralbs)
+    xnames<-matrix(xnames[1,1])
+   } 
+  eivrel<-t(matrix(relx))
+  needed<-needed+nxs;
   varnames<-matrix(c(varnames,xnames))
-  modelvar<-matrix(c(modelvar,xnames))
-  if (nxs==1){modelvlb<-matrix(c("Model :","    Y :","    X :"))}
+  xcatlab<-xnames
+  dat<-cbind(dat,xtmp)
+  modelvar<-matrix(c(modelvar,xnames2))
+  modelvlb<-matrix(c("  Model:","      Y:",xmodelbs))
 
   #read m data
   if (mnck[1,1] != "xxxxx")
@@ -683,6 +1021,11 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    mnames<-matrix(m)
    mprod<-matrix(0,1,nms)
    n<-nrow(mtmp)
+   if ((ncol(relm) != nms) & (yrelm==1) & (eivbad==0))
+    {errcode[errs,1]<-83;errs<-errs+1;criterr<-1;eivbad<-1}
+   if (yrelm==0){relm<-matrix(1,1,nms)}
+   if ((yrelm==1) & (eivbad==0)){eivdo<-1}
+   eivrel<-cbind(eivrel,relm)
    needed<-needed+nms
    varnames<-matrix(c(varnames,mnames))
    dat<-cbind(dat,mtmp)
@@ -694,7 +1037,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    if ((nms > 1) & (nms < 11))
    {modelvlb<-matrix(c(modelvlb,medlb[1:nms,1]))}
    if (nms==1)
-   {modelvlb<-matrix(c(modelvlb,"    M :"))}
+   {modelvlb<-matrix(c(modelvlb,"      M:"))}
    if ((nms > 0) & (model < 4)){errcode[errs,1]<-9;errs<-errs+1;criterr<-1}
   }
 
@@ -719,7 +1062,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    }
    if (xmint != 1)
    {modelvar<-matrix(c(modelvar,wnames))
-   modelvlb<-matrix(c(modelvlb,"    W :"))}     
+   modelvlb<-matrix(c(modelvlb,"      W:"))}     
   }
 
   #read z data
@@ -730,16 +1073,68 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    znames<-matrix(z);zcatlab<-znames;
    varnames<-matrix(c(varnames,znames))
    modelvar<-matrix(c(modelvar,znames))
-   modelvlb<-matrix(c(modelvlb,"    Z :"))
+   modelvlb<-matrix(c(modelvlb,"      Z:"))
   }
-
   #read cov data
+  if ((cnck[1,1]=="xxxxx") & (xtraxs==1))
+  {
+   dat<-cbind(dat,xotmp)
+   ctmp<-xotmp
+   if (eivbad==0){relcov<-relxph;eivrel<-cbind(eivrel,relcov)}
+   varnames<-matrix(c(varnames,xonames))
+  }
   if (cnck[1,1] != "xxxxx")
   {
-   ctmp<-data[cov];ncs<-ncol(ctmp);n<-nrow(ctmp);
-   dat<-cbind(dat,ctmp)
-   covnames<-matrix(cov);varnames<-matrix(c(varnames,covnames));  
+   ctmp<-data[cov];ncs<-ncol(ctmp)+xfakecov;
+   if ((ncol(relcov) != ncol(ctmp)) & (yrelcov==1) & (eivbad==0))
+    {errcode[errs,1]<-83;errs<-errs+1;criterr<-1;eivbad<-1}
+   if (yrelcov==0)
+    {
+     relcov<-matrix(1,1,ncs)
+     if (relxphm==1){relcov[1,1:ncol(relxph)]<-relxph}
+     eivrel<-cbind(eivrel,relcov)
+    }    
+   if ((yrelcov==1) & (eivbad==0))
+    {
+     if (relxphm==1){relcov<-cbind(relxph,relcov)}
+     eivrel<-cbind(eivrel,relcov)
+     eivdo<-1
+    }
+   covnames<-matrix(cov)
+   if ((ncol(ctmp) > 0) & (model==0)){settest<-1}
+   if (xtraxs==1)
+   {
+    ctmp<-cbind(xotmp,ctmp)
+    covnames<-matrix(c(xonames,covnames))
+   }
+   n<-nrow(ctmp)
+   varnames<-matrix(c(varnames,covnames))
+   dat<-cbind(dat,ctmp)  
   }
+  clusok<-0
+  if (cluster != "xxxxx")
+  {
+   clusdat<-data[cluster]
+   dat<-cbind(dat,clusdat)
+   nclsv<-ncol(clusdat)
+   clunames<-matrix(cluster)
+   if (nclsv==1)
+   {
+    modelvar<-matrix(c(modelvar,clunames))
+    modelvlb<-matrix(c(modelvlb,"Cluster:"))
+    clusok<-1
+    if (robustse==1)
+    {hc<-6;notecode[notes,1]<-4;notes<-notes+1}
+    if ((robustse==0) & (clusboot==0))
+    {errcode[errs,1]<-78;errs<-errs+1;criterr<-1}
+   }
+  }
+ 
+  hclab<-matrix(c("se(HC0)","se(HC1)","se(HC2)","se(HC3)","se(HC4)","se","se(CR)"))
+  hclab<-hclab[(hc+1),1]
+  hcflab<-matrix(c("F(HC0)","F(HC1)","F(HC2)","F(HC3)","F(HC4)","F","F(CR)"))
+  hcflab<-hcflab[(hc+1),1] 
+
   
   if (((model==80) | (model==81)) & ((nms < 3) | (nms > 6)))
   {errcode[errs,1]<-32;errs<-errs+1;criterr<-1}
@@ -759,6 +1154,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     if (varnames[i]==varnames[j])
     {
      if (i < (nxs+nms+nys+1)){match2<-match2+1}
+     if (model==0){match2<-match2+1}
      if ((wlocatet==1) & (i==2) & (j==wlocate)){match2<-match2-1}
      if ((wnames==znames) & ((nws > 0) | (nzs > 0))){match<-match2+1} 
      if ((i < (nrow(varnames)-ncs+1)) & (j > (ncol(varnames)-ncs)))
@@ -818,23 +1214,271 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     notes<-notes+1;
     missrow<-t(matrix(missrow))
    }  
-  #dat<-na.omit(dat);n<-nrow(dat);
+  #dat<-na.omit(dat);
+  n<-nrow(dat);
   if (j < 5)
   {errcode[errs,1]<-62;errs<-errs+1;criterr<-1}
-  if (criterr==0)
+  jjjj<-j
+
   #startit
+
+  bcmat<-matrix(0,needed,needed)
+  wcmat<-matrix(0,needed,needed)
+  zcmat<-matrix(0,needed,needed)
+  wzcmat<-matrix(0,needed,needed)
+  wsum<-0;zsum<-0;wzsum<-0
+
+  # Define model matrices for canned models
+  if ((criterr==0) & (model != 999))
+  { 
+   # X->MW, X->MZ, X->MWZ, M->YW, M->YZ, M->YWZ, X->YW, X->YZ, X->YWZ
+   modelmat<-
+   matrix(c(1,0,0,0,0,0,0,1,0,0,2,0,0,0,0,0,0,1,1,0,3,0,0,0,0,0,0,1,1,1,4,0,0,0,0,0,0,0,0,0,
+   5,0,0,0,0,0,0,1,0,0,6,0,0,0,0,0,0,0,0,0,7,1,0,0,0,0,0,0,0,0,8,1,0,0,0,0,0,1,0,0,
+   9,1,1,0,0,0,0,0,0,0,10,1,1,0,0,0,0,1,1,0,11,1,1,1,0,0,0,0,0,0,12,1,1,1,0,0,0,1,1,1,
+   13,1,1,1,0,0,0,1,0,0,14,0,0,0,1,0,0,0,0,0,15,0,0,0,1,0,0,1,0,0,16,0,0,0,1,1,0,0,0,0,
+   17,0,0,0,1,1,0,1,1,0,18,0,0,0,1,1,1,0,0,0,19,0,0,0,1,1,1,1,1,1,20,0,0,0,1,1,1,1,0,0,
+   21,1,0,0,0,1,0,0,0,0,22,1,0,0,0,1,0,1,0,0,23,0,0,0,0,0,0,0,0,0,24,0,0,0,0,0,0,0,0,0,
+   25,0,0,0,0,0,0,0,0,0,26,0,0,0,0,0,0,0,0,0,27,0,0,0,0,0,0,0,0,0,28,1,0,0,0,1,0,0,1,0,
+   29,1,0,0,0,1,0,1,1,0,30,0,0,0,0,0,0,0,0,0,31,0,0,0,0,0,0,0,0,0,32,0,0,0,0,0,0,0,0,0,
+   33,0,0,0,0,0,0,0,0,0,34,0,0,0,0,0,0,0,0,0,35,0,0,0,0,0,0,0,0,0,36,0,0,0,0,0,0,0,0,0,
+   37,0,0,0,0,0,0,0,0,0,38,0,0,0,0,0,0,0,0,0,39,0,0,0,0,0,0,0,0,0,40,0,0,0,0,0,0,0,0,0,
+   41,0,0,0,0,0,0,0,0,0,42,0,0,0,0,0,0,0,0,0,43,0,0,0,0,0,0,0,0,0,44,0,0,0,0,0,0,0,0,0,
+   45,0,0,0,0,0,0,0,0,0,46,0,0,0,0,0,0,0,0,0,47,0,0,0,0,0,0,0,0,0,48,0,0,0,0,0,0,0,0,0,
+   49,0,0,0,0,0,0,0,0,0,50,0,0,0,0,0,0,0,0,0,51,0,0,0,0,0,0,0,0,0,52,0,0,0,0,0,0,0,0,0,
+   53,0,0,0,0,0,0,0,0,0,54,0,0,0,0,0,0,0,0,0,55,0,0,0,0,0,0,0,0,0,56,0,0,0,0,0,0,0,0,0,
+   57,0,0,0,0,0,0,0,0,0,58,1,0,0,1,0,0,0,0,0,59,1,0,0,1,0,0,1,0,0,60,1,1,0,1,0,0,0,0,0,
+   61,1,1,0,1,0,0,1,0,0,62,1,1,0,1,0,0,0,1,0,63,1,1,0,1,0,0,1,1,0,64,1,0,0,1,1,0,0,0,0,
+   65,1,0,0,1,1,0,1,0,0,66,1,0,0,1,1,0,0,1,0,67,1,0,0,1,1,0,1,1,0,68,1,1,1,1,0,0,0,0,0,
+   69,1,1,1,1,0,0,1,1,1,70,1,0,0,1,1,1,0,0,0,71,1,0,0,1,1,1,1,1,1,72,1,1,1,1,1,1,0,0,0,
+   73,1,1,1,1,1,1,1,1,1,74,0,0,0,1,0,0,0,0,0,75,1,1,0,1,1,0,0,0,0,76,1,1,0,1,1,0,1,1,0,
+   77,0,0,0,0,0,0,0,0,0,78,0,0,0,0,0,0,0,0,0,79,0,0,0,0,0,0,0,0,0,80,0,0,0,0,0,0,0,0,0,
+   81,0,0,0,0,0,0,0,0,0,82,0,0,0,0,0,0,0,0,0,83,1,0,0,0,0,0,0,0,0,84,1,0,0,0,0,0,0,0,0,
+   85,1,0,0,0,0,0,1,0,0,86,1,0,0,0,0,0,1,0,0,87,0,0,0,1,0,0,0,0,0,88,0,0,0,1,0,0,0,0,0,
+   89,0,0,0,1,0,0,1,0,0,90,0,0,0,1,0,0,1,0,0,91,0,0,0,0,0,0,0,0,0,92,1,0,0,1,0,0,1,0,0))
+   dim(modelmat)<-c(10,92);modelmat=t(modelmat);
+   if (model > 0){tmp<-modelmat[model,2:ncol(modelmat)];tmp=t(matrix(tmp))}
+   if (model == 0){tmp<-matrix(0,1,9)}
+   if (model < 4) {bcmat[(nxs+1),1]<-1}
+   if ((model > 3) & (model != 6))
+    {bcmat[(nxs+1):(nxs+nms),1]<-onem
+     bcmat[nrow(bcmat),(nxs+1):(nxs+nms)]<-t(onem)
+     bcmat[nrow(bcmat),1]<-1}
+   if ((model==6) | ((model > 82) & (model < 93)))
+   {
+    for (j in c(2:nrow(bcmat)))
+    {for (i in c(1:(j-1)))
+      {bcmat[j,i]<-1}
+    }
+   } 
+   if (model==80)
+   {for (i in c(1:nms)){bcmat[(nrow(bcmat)-1),i]<-1}}
+   if (model==81)
+   {for (j in c(3:nrow(bcmat))){bcmat[j,2]<-1}}
+   if (model==82)
+   {bcmat[3,2]<-1;bcmat[5,4]<-1}
+   if (tmp[1,1]==1)
+   {
+    wcmat[(nxs+1):(nxs+nms),1]=onem;wprod<-1;xprod<-1
+    if ((model==83) | (model==86))
+    {onemsx<-onem
+     for (i in c(1:(nms-1))){onemsx[(i+1),1]<-0}
+     wcmat[(nxs+1):(nxs+nms),1]<-onemsx
+    } 
+   }
+   if (tmp[1,4]==1)
+   {
+    wcmat[nrow(wcmat),(nxs+1):(nxs+nms)]<-t(onem);wprod<-1;
+    if ((model==87) | (model==90))
+    {onemsx<-onem
+     for (i in c(1:(nms-1))){onemsx[i,1]=0}
+     wcmat[nrow(wcmat),(nxs+1):(nxs+nms)]=t(onemsx)
+    }
+   }
+   if (tmp[1,7]==1){wcmat[nrow(wcmat),1]<-1;wprod<-1;xprod<-1}
+   if (tmp[1,2]==1){zcmat[(nxs+1):(nxs+nms),1]<-onem;zprod<-1;xprod<-1}
+   if (tmp[1,5]==1){zcmat[nrow(zcmat),(nxs+1):(nxs+nms)]=t(onem);zprod<-1}
+   if (tmp[1,8]==1){zcmat[nrow(zcmat),1]<-1;zprod<-1;xprod<-1}
+   if (tmp[1,3]==1){wzcmat[(nxs+1):(nxs+nms),1]<-onem;xprod<-1;wprod<-1;zprod<-1}
+   if (tmp[1,6]==1){wzcmat[nrow(wzcmat),(nxs+1):(nxs+nms)]<-t(onem)}
+   if (tmp[1,9]==1){wzcmat[nrow(wzcmat),1]<-1;xprod<-1;wprod<-1;zprod<-1}
+   if ((model==91) | (model==92))
+   {
+    for (j in c(1:(nms-1)))
+    {for (i in c(1:j)){wcmat[(nxs+1+j),(nxs+i)]<-1}}
+   }
+  }
+
+  #Define matrices for custom models and do some error checking
+  if (criterr==0)
   {
-  rownum<-matrix(dat[1:(j-1),1]);dat<-dat[1:(j-1),2:ncol(dat)]
+   needed<-needed*(needed-1)/2;nopath<-0
+   if (bmatrix[1,1] != -999)
+   {tmp<-1
+    if ((ncol(bmatrix) != needed) | (sum(bmatrix)==0))
+     {errcode[errs,1]<-16;errs<-errs+1;criterr<-1} else {
+     for (i in c(2:nrow(bcmat)))
+     {for (j in c(1:(i-1)))
+      {bcmat[i,j]<-(1-as.numeric(bmatrix[1,tmp]==0));tmp<-tmp+1}        
+     } 
+    }
+    #check to make sure X affects something */
+    tmpcov<-sum(bcmat[,1])
+    if ((tmpcov==0) & (criterr==0))
+    {errcode[errs,1]<-22;errs<-errs+1;criterr<-1}
+    #check to make sure Y is affected by something */
+    tmpcov<-sum(bcmat[nrow(bcmat),])
+    if ((tmpcov==0) & (criterr==0))
+    {errcode[errs,1]<-23;errs<-errs+1;criterr<-1}
+    #check for dangling mediators
+    dm<-0
+    if (nms > 0)
+    {
+     for (i in c(1:nms))
+     tmpcov<-sum(bcmat[(nxs+i),]);tmpcov2<-sum(bcmat[,(nxs+i)])
+     {if (((tmpcov==0) | (tmpcov2==0)) & (dm==0) & (criterr==0))
+      {errcode[errs,1]<-26;errs<-errs+1;criterr<-1;dm<-1}       
+     }
+    }
+   }
+  }
+
+  #start b
+  if (criterr==0)
+  {
+   if (wmatrix[1,1] != -999)
+   {
+    tmp<-1
+    if (ncol(wmatrix) != needed)
+     {errcode[errs,1]<-17;errs<-errs+1;criterr<-1} else { 
+      modelvar[1,1]="CUSTOM"
+      for (i in (2:nrow(wcmat)))
+      {     
+       for (j in (1:(i-1)))       
+       {wcmat[i,j]<-(1-as.numeric(wmatrix[1,tmp]==0))
+        #dont allow to specify moderation of a path that doesnt exist
+        if ((wcmat[i,j]==1) & (bcmat[i,j]==0) & (nopath==0))
+        {errcode[errs,1]<-20;errs<-errs+1;criterr<-1;nopath<-1}   
+        tmp<-tmp+1
+       }
+      } 
+     }
+   }
+ 
+   if (zmatrix[1,1] != -999)
+   {
+    tmp<-1
+    if (ncol(zmatrix) != needed)
+     {errcode[errs,1]<-18;errs<-errs+1;criterr<-1} else {
+      modelvar[1,1]="CUSTOM"
+      if ((sum(wcmat)==0) & (model==999))
+      {errcode[errs,1]<-21;errs<-errs+1;criterr<-1}
+      for (i in (2:nrow(zcmat)))
+      {     
+       for (j in (1:(i-1)))       
+       {zcmat[i,j]<-(1-as.numeric(zmatrix[1,tmp]==0))
+        #dont allow to specify moderation of a path that doesnt exist
+        if ((zcmat[i,j]==1) & (bcmat[i,j]==0) & (nopath==0))
+        {errcode[errs,1]<-20;errs<-errs+1;criterr<-1;nopath<-1}   
+        tmp<-tmp+1
+       }
+      } 
+     }
+   }
+   tmp<-1
+   if (wzmatrix[1,1] != -999)
+   {
+    if (ncol(wzmatrix) != needed)
+    {errcode[errs,1]<-19;errs<-errs+1;criterr<-1}
+    modelvar[1,1]="CUSTOM"
+   } 
+   if (criterr==0)
+   {
+    for (i in (2:nrow(wzcmat)))
+    {
+     for (j in (1:(i-1)))
+     {
+      #set corresponding elements in W and Z for three way interaction
+      if (wzmatrix[1,1] != -999){wzcmat[i,j]<-(1-as.numeric(wzmatrix[1,tmp]==0))}
+      if (wzcmat[i,j]==1){wcmat[i,j]<-1;zcmat[i,j]<-1}       
+      #dont allow to specify moderation of a path that doesnt exist
+      if ((wzcmat[i,j]==1) & (bcmat[i,j]==0) & (nopath==0))
+      {errcode[errs,1]<-20;errs<-errs+1;criterr<-1;nopath<-1}
+      tmp<-tmp+1
+     }
+    }
+   }
+  }
+  # end B
+
+
+  if (criterr==0)
+  {
+   xprod<-(sum(wcmat[,1])+sum(zcmat[,1])+sum(wzcmat[,1]))
+   xprod<-as.numeric(xprod > 0)
+   wsum<-sum(wcmat)
+   wprod<-as.numeric(wsum > 0)
+   zsum<-sum(zcmat)
+   zprod<-as.numeric(zsum > 0)
+   if (nms > 0)
+   {
+    for (i in c(1:nms))
+    {
+     tmp<-(sum(wcmat[,(1+i)])+sum(zcmat[,(1+i)])+sum(wzcmat[,(1+i)]))
+     mprod[1,i]<-as.numeric(tmp>0)
+    }
+   }
+   if ((wsum > 0) & (w=="xxxxx")){errcode[errs,1]<-11;errs<-errs+1;criterr<-1}
+   if ((wsum==0) & (w != "xxxxx")){errcode[errs,1]<-10;errs<-errs+1;criterr<-1}
+   if ((zsum > 0) & (z=="xxxxx")){errcode[errs,1]<-13;errs<-errs+1;criterr<-1}
+   if ((zsum==0) & (z != "xxxxx")){errcode[errs,1]<-12;errs<-errs+1;criterr<-1}
+   if ((zsum > 0) & (wsum==0)){errcode[errs,1]<-35;errs<-errs+1;criterr<-1}
+  }
+
+
+  if (criterr==0)
+  {
+  j<-jjjj;rownum<-matrix(dat[1:(j-1),1]);dat<-dat[1:(j-1),2:ncol(dat)]
   n<-nrow(dat)
+  if (clusok==1)
+  {
+   clusdat<-matrix(dat[,ncol(dat)])
+   clusdat<-cbind(rownum,clusdat,clusdat)
+   clusdat<-clusdat[order(clusdat[,2]),]
+   for (i in (1:nrow(clusdat))){clusdat[i,3]<-i}
+   current<-t(matrix(c(clusdat[1,2],1,1,1)))
+   currentc<-1
+   for (i in (2:nrow(clusdat)))
+   {
+    if (clusdat[i,2]==current[currentc,1])
+    {
+     current[currentc,2]<-current[currentc,2]+1
+     current[currentc,4]<-i
+    }
+    if (clusdat[i,2] != current[currentc,1])
+    {
+     current2<-t(matrix(c(clusdat[i,2],1,i,i)))
+     current=rbind(current,current2)
+     currentc<-currentc+1        
+    }
+   }
+   nclus<-nrow(current)
+   clusinfo<-matrix(c(nrow(current),mean(current[,2]),min(current[,2]),max(current[,2])))	   
+   clusdat<-clusdat[order(clusdat[,1]),]
+   dat<-dat[,1:(ncol(dat)-clusok)]
+  }
+
   #extract the data back into vectors or matrices
-  ytmp=as.data.frame(dat[,1:nys])
-  desctmp2<-process.describ3(ytmp,0,quantile)
+  ytmp<-as.data.frame(dat[,1:nys])
+  desctmp2<-process.describ3(ytmp,1,quantile)
   desctmp<-matrix(unlist(desctmp2[1]))
   ysd<-desctmp[2,1];ovsd<-matrix(ysd);ydich<-0
   if (desctmp[8,1]==2){errcode[errs,1]<-15;errs<-errs+1;criterr<-1;novar<-1}
   if (desctmp[8,1]==1)
   {
    ydich<-1;
+   if (robustse==1){robustse<-0;errcode[errs,1]<-81;errs<-errs+1;criterr<-1}
+   if ((ydich==1) & (eivdo==1)){eivdo<-0;errcode[errs,1]<-86;errs<-errs+1;criterr<-1}
    if (total==1){total<-0;notecode[notes,1]<-24;notes<-notes+1}
    if (effsize==1){effsize<-0;notecode[notes,1]<-25;notes<-notes+1}
    if (model==74){errcode[errs,1]<-72;errs<-errs+1;criterr<-1}
@@ -844,7 +1488,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    rcd<-c(omn,omx,0,1);dim(rcd)<-c(2,2)
   }
   xtmp<-as.data.frame(dat[,(nys+1):(nys+nxs)])
-  desctmp2<-process.describ3(xtmp,0,quantile)
+  desctmp2<-process.describ3(xtmp,(1-xprod),quantile)
   desctmp<-matrix(unlist(desctmp2[1]))
   xsd<-desctmp[2,1]
   if ((desctmp[8,1]==2) & (novar==0))
@@ -926,7 +1570,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   if (nws > 0)
   {
    wtmp<-as.data.frame(dat[,(nys+nxs+nms+1):(nys+nxs+nms+nws)])
-   desctmp2<-process.describ3(wtmp,0,quantile)
+   desctmp2<-process.describ3(wtmp,(1-wprod),quantile)
    desctmp<-matrix(unlist(desctmp2[1]))
    if ((desctmp[8,1]==2) & (novar==0))
    {errcode[errs,1]<-15;errs<-errs+1;criterr<-1;novar<-1}
@@ -955,7 +1599,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   if (nzs > 0)
   {
    ztmp<-as.data.frame(dat[,(nys+nxs+nms+nws+1):(nys+nxs+nms+nws+nzs)])
-   desctmp2<-process.describ3(ztmp,0,quantile)
+   desctmp2<-process.describ3(ztmp,(1-zprod),quantile)
    desctmp<-matrix(unlist(desctmp2[1]))
    if ((desctmp[8,1]==2) & (novar==0))
    {errcode[errs,1]<-15;errs<-errs+1;criterr<-1;novar<-1}
@@ -1094,9 +1738,10 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    {
     nvls<-unlist(dumtmp[3])
     nxvls<-nvls-1
+    setxcat<-(nxvls-1)
     xtmp<-matrix(unlist(dumtmp[1]),ncol=(nxvls+1))
     xtmp<-xtmp[,2:ncol(xtmp)];xtmp<-as.data.frame(xtmp)
-    xcatlab<-c("X1","X2","X3","X4","X5","X6","X7","X8","X9");xcatlab=matrix(xcatlab)
+    xcatlab<-c("X1","X2","X3","X4","X5","X6","X7","X8","X9");xcatlab<-matrix(xcatlab)
     xdich<-as.numeric(nvls==2)
     mcxok<-1
     dummatx<-matrix(unlist(dumtmp[2]),ncol=(nxvls+1),nrow=(nxvls+1))
@@ -1104,102 +1749,95 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     nxpval<-nrow(xmodvals)
    }
   }
-  intlab<-matrix(" ",100,1)
-  for (i in c(1:100)){intlab[i,1]<-paste("Int_",i,sep='')}
-  bcmat<-matrix(0,needed,needed)
-  wcmat<-matrix(0,needed,needed)
-  zcmat<-matrix(0,needed,needed)
-  wzcmat<-matrix(0,needed,needed)
-  wsum<-0;zsum<-0;wzsum<-0
+
+  #making spline data
+  if (nspl > 0)
+  {
+   spld3<-matrix(0,n,nspl)
+   spld2<-matrix(0,n,nspl)
+   xsplmin<-min(xtmp)
+   mcheck<-0;ocheck<-0
+   for (i in (1:nspl))
+   {
+    spld3[,i]<-as.numeric(xtmp > spl[1,i])
+    spld2[,i]<-(as.matrix(xtmp)-spl[1,i])
+    spld<-spld3*spld2
+    mcheck<-mcheck+as.numeric(spl[1,i]==xsplmin)
+    if (i > 1)
+    {
+     if (spl[1,i] <= spl[1,(i-1)])
+     {ocheck<-1}
+    }
+   }
+   spld4<-t(as.matrix(colSums(spld3)))
+   fff<-t(matrix(colSums(spld3)))
+   fff<-t(matrix(as.numeric(fff < 2)))
+   fff<-sum(as.numeric(fff > 0))
+   if (ocheck==0)
+   {
+    for (i in (1:nspl))
+    {
+     if (i > 1)
+     {if (spld4[1,i] >= ((spld4[1,i-1])-1)){fff<-1}}
+    }
+   }    
+   if (fff > 0){errs<-errs+1;errcode[errs,1]<-76;criterr<-1}
+   if (mcheck > 0){errs<-errs+1;errcode[errs,1]<-75;criterr<-1}
+   if (ocheck > 0){errs<-errs+1;errcode[errs,1]<-74;criterr<-1}
+   if (nspl > 8){errs<-errs+1;errcode[errs,1]<-73;criterr<-1}
+   xtmp<-cbind(xtmp,spld)        
+   if (nspl < 9)
+   {
+    jlab<-matrix(c("Joint1","Joint2","Joint3","Joint4","Joint5","Joint6","Joint7","Joint8"))
+    jlab<-matrix(jlab[1:nspl,1])
+    xcatlab<-matrix(rbind(xnames,jlab))
+    nmspl<-jlab
+    xnmspl<-xnames
+    nxvls<-nspl+1
+    setxcat<-nxvls-1
+   }  
+  }
+  dfbetas<-matrix(" ",201,1)
+  for (i in c(0:200)){dfbetas[i,1]<-paste("dfb_",(i-1),sep='')}
+  intlab<-matrix(" ",200,1)
+  dfinds<-matrix(" ",200,1)
+  dfindsC<-matrix(" ",200,1)
+  for (i in c(1:200))
+  {
+   intlab[i,1]<-paste("int_",i,sep='')
+   dfinds[i,1]<-paste("dfie_",i,sep='')
+   dfindsC[i,1]<-paste("dfie_",i,sep='')
+  }
  }
- }
+ #}
+  if (criterr==0)
+  {
+  save4sv<-matrix(c("casenum","pred","resid","d_resid","stresid","tresid","h","mahal","cook","dmsreg","drsq","dskew"))
+  save4sv<-rbind(save4sv,dfbetas,dfindsC)
+  save4sv<-t(save4sv)
+  }
+  if (savediag==1)
+  {
+   sv4chk2<-t(varnames)
+   for (sv4chk in (1:ncol(save4sv)))
+   {
+    for (sv4chk3 in (1:ncol(sv4chk2)))
+    {
+     if ((sv4chk2[1,sv4chk3])==(save4sv[1,sv4chk]))
+     {
+      if (sv4match==0)
+      {sv4match<-1;notecode[notes,1]<-39;notes<-notes+1}
+     }
+    }
+   }
+  }
 
  }
  #endit
 
  # End A loop reads data and does some other things
+ }
 
- # Define model matrices for canned models
- if ((criterr==0) & (model != 999))
- { 
-  # X->MW, X->MZ, X->MWZ, M->YW, M->YZ, M->YWZ, X->YW, X->YZ, X->YWZ
-  modelmat<-
-  matrix(c(1,0,0,0,0,0,0,1,0,0,2,0,0,0,0,0,0,1,1,0,3,0,0,0,0,0,0,1,1,1,4,0,0,0,0,0,0,0,0,0,
-  5,0,0,0,0,0,0,1,0,0,6,0,0,0,0,0,0,0,0,0,7,1,0,0,0,0,0,0,0,0,8,1,0,0,0,0,0,1,0,0,
-  9,1,1,0,0,0,0,0,0,0,10,1,1,0,0,0,0,1,1,0,11,1,1,1,0,0,0,0,0,0,12,1,1,1,0,0,0,1,1,1,
-  13,1,1,1,0,0,0,1,0,0,14,0,0,0,1,0,0,0,0,0,15,0,0,0,1,0,0,1,0,0,16,0,0,0,1,1,0,0,0,0,
-  17,0,0,0,1,1,0,1,1,0,18,0,0,0,1,1,1,0,0,0,19,0,0,0,1,1,1,1,1,1,20,0,0,0,1,1,1,1,0,0,
-  21,1,0,0,0,1,0,0,0,0,22,1,0,0,0,1,0,1,0,0,23,0,0,0,0,0,0,0,0,0,24,0,0,0,0,0,0,0,0,0,
-  25,0,0,0,0,0,0,0,0,0,26,0,0,0,0,0,0,0,0,0,27,0,0,0,0,0,0,0,0,0,28,1,0,0,0,1,0,0,1,0,
-  29,1,0,0,0,1,0,1,1,0,30,0,0,0,0,0,0,0,0,0,31,0,0,0,0,0,0,0,0,0,32,0,0,0,0,0,0,0,0,0,
-  33,0,0,0,0,0,0,0,0,0,34,0,0,0,0,0,0,0,0,0,35,0,0,0,0,0,0,0,0,0,36,0,0,0,0,0,0,0,0,0,
-  37,0,0,0,0,0,0,0,0,0,38,0,0,0,0,0,0,0,0,0,39,0,0,0,0,0,0,0,0,0,40,0,0,0,0,0,0,0,0,0,
-  41,0,0,0,0,0,0,0,0,0,42,0,0,0,0,0,0,0,0,0,43,0,0,0,0,0,0,0,0,0,44,0,0,0,0,0,0,0,0,0,
-  45,0,0,0,0,0,0,0,0,0,46,0,0,0,0,0,0,0,0,0,47,0,0,0,0,0,0,0,0,0,48,0,0,0,0,0,0,0,0,0,
-  49,0,0,0,0,0,0,0,0,0,50,0,0,0,0,0,0,0,0,0,51,0,0,0,0,0,0,0,0,0,52,0,0,0,0,0,0,0,0,0,
-  53,0,0,0,0,0,0,0,0,0,54,0,0,0,0,0,0,0,0,0,55,0,0,0,0,0,0,0,0,0,56,0,0,0,0,0,0,0,0,0,
-  57,0,0,0,0,0,0,0,0,0,58,1,0,0,1,0,0,0,0,0,59,1,0,0,1,0,0,1,0,0,60,1,1,0,1,0,0,0,0,0,
-  61,1,1,0,1,0,0,1,0,0,62,1,1,0,1,0,0,0,1,0,63,1,1,0,1,0,0,1,1,0,64,1,0,0,1,1,0,0,0,0,
-  65,1,0,0,1,1,0,1,0,0,66,1,0,0,1,1,0,0,1,0,67,1,0,0,1,1,0,1,1,0,68,1,1,1,1,0,0,0,0,0,
-  69,1,1,1,1,0,0,1,1,1,70,1,0,0,1,1,1,0,0,0,71,1,0,0,1,1,1,1,1,1,72,1,1,1,1,1,1,0,0,0,
-  73,1,1,1,1,1,1,1,1,1,74,0,0,0,1,0,0,0,0,0,75,1,1,0,1,1,0,0,0,0,76,1,1,0,1,1,0,1,1,0,
-  77,0,0,0,0,0,0,0,0,0,78,0,0,0,0,0,0,0,0,0,79,0,0,0,0,0,0,0,0,0,80,0,0,0,0,0,0,0,0,0,
-  81,0,0,0,0,0,0,0,0,0,82,0,0,0,0,0,0,0,0,0,83,1,0,0,0,0,0,0,0,0,84,1,0,0,0,0,0,0,0,0,
-  85,1,0,0,0,0,0,1,0,0,86,1,0,0,0,0,0,1,0,0,87,0,0,0,1,0,0,0,0,0,88,0,0,0,1,0,0,0,0,0,
-  89,0,0,0,1,0,0,1,0,0,90,0,0,0,1,0,0,1,0,0,91,0,0,0,0,0,0,0,0,0,92,1,0,0,1,0,0,1,0,0))
-  dim(modelmat)<-c(10,92);modelmat=t(modelmat);
-  if (model > 0){tmp<-modelmat[model,2:ncol(modelmat)];tmp=t(matrix(tmp))}
-  if (model == 0){tmp<-matrix(0,1,9)}
-  if (model < 4) {bcmat[(nxs+1),1]<-1}
-  if ((model > 3) & (model != 6))
-   {bcmat[(nxs+1):(nxs+nms),1]<-onem
-    bcmat[nrow(bcmat),(nxs+1):(nxs+nms)]<-t(onem)
-    bcmat[nrow(bcmat),1]<-1}
-  if ((model==6) | ((model > 82) & (model < 93)))
-  {
-   for (j in c(2:nrow(bcmat)))
-   {for (i in c(1:(j-1)))
-     {bcmat[j,i]<-1}
-   }
-  } 
-  if (model==80)
-  {for (i in c(1:nms)){bcmat[(nrow(bcmat)-1),i]<-1}}
-  if (model==81)
-  {for (j in c(3:nrow(bcmat))){bcmat[j,2]<-1}}
-  if (model==82)
-  {bcmat[3,2]<-1;bcmat[5,4]<-1}
-  if (tmp[1,1]==1)
-  {
-   wcmat[(nxs+1):(nxs+nms),1]=onem;wprod<-1;xprod<-1
-   if ((model==83) | (model==86))
-   {onemsx<-onem
-    for (i in c(1:(nms-1))){onemsx[(i+1),1]<-0}
-    wcmat[(nxs+1):(nxs+nms),1]<-onemsx
-   } 
-  }
-  if (tmp[1,4]==1)
-  {
-   wcmat[nrow(wcmat),(nxs+1):(nxs+nms)]<-t(onem);wprod<-1;
-   if ((model==87) | (model==90))
-   {onemsx<-onem
-    for (i in c(1:(nms-1))){onemsx[i,1]=0}
-    wcmat[nrow(wcmat),(nxs+1):(nxs+nms)]=t(onemsx)
-   }
-  }
-  if (tmp[1,7]==1){wcmat[nrow(wcmat),1]<-1;wprod<-1;xprod<-1}
-  if (tmp[1,2]==1){zcmat[(nxs+1):(nxs+nms),1]<-onem;zprod<-1;xprod<-1}
-  if (tmp[1,5]==1){zcmat[nrow(zcmat),(nxs+1):(nxs+nms)]=t(onem);zprod<-1}
-  if (tmp[1,8]==1){zcmat[nrow(zcmat),1]<-1;zprod<-1;xprod<-1}
-  if (tmp[1,3]==1){wzcmat[(nxs+1):(nxs+nms),1]<-onem;xprod<-1;wprod<-1;zprod<-1}
-  if (tmp[1,6]==1){wzcmat[nrow(wzcmat),(nxs+1):(nxs+nms)]<-t(onem)}
-  if (tmp[1,9]==1){wzcmat[nrow(wzcmat),1]<-1;xprod<-1;wprod<-1;zprod<-1}
-  if ((model==91) | (model==92))
-  {
-   for (j in c(1:(nms-1)))
-   {for (i in c(1:j)){wcmat[(nxs+1+j),(nxs+i)]<-1}
-  }
- }
- }
  #define and check covariates matrix
  if (ncs > 0)
   {
@@ -1223,130 +1861,20 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   } 
  } 
 
- #Define matrices for custom models and do some error checking
+ 
  if (criterr==0)
  {
-  needed<-needed*(needed-1)/2;nopath<-0
-  if (bmatrix[1,1] != -999)
-  {tmp<-1
-   if ((ncol(bmatrix) != needed) | (sum(bmatrix)==0))
-    {errcode[errs,1]<-16;errs<-errs+1;criterr<-1} else {
-    for (i in c(2:nrow(bcmat)))
-    {for (j in c(1:(i-1)))
-     {bcmat[i,j]<-(1-as.numeric(bmatrix[1,tmp]==0));tmp<-tmp+1}        
-    } 
-   }
-   #check to make sure X affects something */
-   tmpcov<-sum(bcmat[,1])
-   if ((tmpcov==0) & (criterr==0))
-   {errcode[errs,1]<-22;errs<-errs+1;criterr<-1}
-   #check to make sure Y is affected by something */
-   tmpcov<-sum(bcmat[nrow(bcmat),])
-   if ((tmpcov==0) & (criterr==0))
-   {errcode[errs,1]<-23;errs<-errs+1;criterr<-1}
-   #check for dangling mediators
-   dm<-0
-   if (nms > 0)
-   {
-    for (i in c(1:nms))
-    tmpcov<-sum(bcmat[(nxs+i),]);tmpcov2<-sum(bcmat[,(nxs+i)])
-    {if (((tmpcov==0) | (tmpcov2==0)) & (dm==0) & (criterr==0))
-     {errcode[errs,1]<-26;errs<-errs+1;criterr<-1;dm<-1}       
-    }
-   }
-  }
+  anymod2<-sum(wcmat[,1]+zcmat[,1]+wzcmat[,1])
+  anymod3<-sum(wcmat+zcmat+wzcmat)
+  if (((anymod3 > 0) | (nspl > 0)) & ((yrelx==1) | (yrelm==1) | (yrelcov==1)))
+   {eivbad<-1;errcode[errs,1]<-82;errs<-errs+1;criterr<-1}
+  if ((anymod2 > 0) & (nspl > 0))
+   {errcode[errs,1]<-77;errs<-errs+1;criterr<-1}
+  if (((savediag==1) & (ydich==1)) | ((diagnose==1) & (ydich==1)))
+   {notecode[notes,1]<-27;notes<-notes+1;savediag<-0;diagnose<-0}
  }
+ 
 
- #start b
- if (criterr==0)
- {
-  if (wmatrix[1,1] != -999)
-  {
-   tmp<-1
-   if (ncol(wmatrix) != needed)
-    {errcode[errs,1]<-17;errs<-errs+1;criterr<-1} else { 
-     modelvar[1,1]="CUSTOM"
-     for (i in (2:nrow(wcmat)))
-     {     
-      for (j in (1:(i-1)))       
-      {wcmat[i,j]<-(1-as.numeric(wmatrix[1,tmp]==0))
-       #dont allow to specify moderation of a path that doesnt exist
-       if ((wcmat[i,j]==1) & (bcmat[i,j]==0) & (nopath==0))
-       {errcode[errs,1]<-20;errs<-errs+1;criterr<-1;nopath<-1}   
-       tmp<-tmp+1
-      }
-     } 
-    }
-  }
-
-  if (zmatrix[1,1] != -999)
-  {
-   tmp<-1
-   if (ncol(zmatrix) != needed)
-    {errcode[errs,1]<-18;errs<-errs+1;criterr<-1} else {
-     modelvar[1,1]="CUSTOM"
-     if ((sum(wcmat)==0) & (model==999))
-     {errcode[errs,1]<-21;errs<-errs+1;criterr<-1}
-     for (i in (2:nrow(zcmat)))
-     {     
-      for (j in (1:(i-1)))       
-      {zcmat[i,j]<-(1-as.numeric(zmatrix[1,tmp]==0))
-       #dont allow to specify moderation of a path that doesnt exist
-       if ((zcmat[i,j]==1) & (bcmat[i,j]==0) & (nopath==0))
-       {errcode[errs,1]<-20;errs<-errs+1;criterr<-1;nopath<-1}   
-       tmp<-tmp+1
-      }
-     } 
-    }
-  }
-  tmp<-1
-  if (wzmatrix[1,1] != -999)
-  {
-   if (ncol(wzmatrix) != needed)
-   {errcode[errs,1]<-19;errs<-errs+1;criterr<-1}
-   modelvar[1,1]="CUSTOM"
-  } 
-  if (criterr==0)
-  {
-   for (i in (2:nrow(wzcmat)))
-   {
-    for (j in (1:(i-1)))
-    {
-     #set corresponding elements in W and Z for three way interaction
-     if (wzmatrix[1,1] != -999){wzcmat[i,j]<-(1-as.numeric(wzmatrix[1,tmp]==0))}
-     if (wzcmat[i,j]==1){wcmat[i,j]<-1;zcmat[i,j]<-1}       
-     #dont allow to specify moderation of a path that doesnt exist
-     if ((wzcmat[i,j]==1) & (bcmat[i,j]==0) & (nopath==0))
-     {errcode[errs,1]<-20;errs<-errs+1;criterr<-1;nopath<-1}
-     tmp<-tmp+1
-    }
-   }
-  }
- }
- # end B
-
- if (criterr==0)
- {
-  xprod<-(sum(wcmat[,1])+sum(zcmat[,1])+sum(wzcmat[,1]))
-  xprod<-as.numeric(xprod > 0)
-  wsum<-sum(wcmat)
-  wprod<-as.numeric(wsum > 0)
-  if (nms > 0)
-  {
-   for (i in c(1:nms))
-   {
-    tmp<-(sum(wcmat[,(1+i)])+sum(zcmat[,(1+i)])+sum(wzcmat[,(1+i)]))
-    mprod[1,i]<-as.numeric(tmp>0)
-   }
-  }
-  if ((wsum > 0) & (w=="xxxxx")){errcode[errs,1]<-11;errs<-errs+1;criterr<-1}
-  if ((wsum==0) & (w != "xxxxx")){errcode[errs,1]<-10;errs<-errs+1;criterr<-1}
-  zsum<-sum(zcmat)
-  zprod<-as.numeric(zsum > 0)
-  if ((zsum > 0) & (z=="xxxxx")){errcode[errs,1]<-13;errs<-errs+1;criterr<-1}
-  if ((zsum==0) & (z != "xxxxx")){errcode[errs,1]<-12;errs<-errs+1;criterr<-1}
-  if ((zsum > 0) & (wsum==0)){errcode[errs,1]<-35;errs<-errs+1;criterr<-1}
- }
  if ((criterr==0) & (nms > 1))
  {
   serchk<-bcmat[2:(nrow(bcmat)-1),2:ncol(bcmat)]
@@ -1471,6 +1999,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     wheremw<-matrix(-999,(nms*2),(nms+nys))
     wheremz<-matrix(-999,(nms*2),(nms+nys))
     wheremwz<-matrix(-999,(nms*2),(nms+nys))
+    intbrdmw<-matrix("xxxx",nwvls,nms)
+    intbrdmz<-matrix("xxxx",nzvls,nms)
+    intbdmwz<-matrix("xxxx",(nwvls*nzvls),nms)
   }  
   wzhigh<-matrix(0,1000,(((nms+1)*(nms+2))/2))
   whigh<-matrix(0,1000,(((nms+1)*(nms+2))/2))
@@ -1478,7 +2009,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   fochigh<-matrix(0,1000,(((nms+1)*(nms+2))/2))
   xcoefloc<-matrix(c(1,2,3,4,5,6,7,8,9))
   intkey<-t(matrix(c(" ", " ", " ", " ", " ", " ", " ")))
-  wzhighct<-0;whighct<-0;zhighct<-0;foccnt<-0
+  wzhighct<-0;whighct<-0;zhighct<-0;foccnt<-0;cntmp2<-1
   if (nms > 0){mnames<-t(mnames)}
   if (ncs > 0){covnames<-t(covnames)}
   xtmp<-data.matrix(xtmp)
@@ -1506,6 +2037,8 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      {
       fulldat<-matrix(c(fulldat,xtmp),nrow=n)
       xtmpuse<-1
+      relxmc<-matrix(relx,1,nxvls)
+      fulldatr<-cbind(fulldatr,relxmc)
       for (k4 in (datcount:(datcount+(nxvls-1))))
       {xtmploc<-matrix(c(xtmploc,k4))}
       xtmploc<-matrix(xtmploc[2:nrow(xtmploc),1])
@@ -1527,6 +2060,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       if (mtmpuse[1,(j-1)]==0)
       {
        fulldat<-matrix(c(fulldat,mtmp[,(j-1)]),nrow=n)
+       fulldatr<-cbind(fulldatr,relm[,(j-1)])
        mtmpuse[1,(j-1)]<-1
        mtmploc[1,(j-1)]<-datcount
        datcount<-datcount+1
@@ -1576,21 +2110,37 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       wherew[1,(i-1)]<-start+1
       wherew[2,(i-1)]<-start+nrow(wtmploc)-1+1
       start<-start+nrow(wtmploc)
+      intlbrd<-matrix("xxx")
+      cntmp1<-1
       for (k1 in c(1:nxvls))
       {
        for (k2 in c(1:nwvls))
        {
         outv<-as.matrix(cbind(outv,(xtmp[,k1]*wtmp[,k2])))
-        if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}          
-        modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-        intkeyt<-matrix(c(intlab[cntmp,1],":",xcatlab[k1,1],"x",wcatlab[k2,1]," "," "),ncol=7)
-        intkey<-rbind(intkey,intkeyt)
-        cntmp<-cntmp+1
+        if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
+        if (xwtmpus==0)
+        {          
+         modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+         intkeyt<-matrix(c(intlab[cntmp2,1],":",xcatlab[k1,1],"x",wcatlab[k2,1]," "," "),ncol=7)
+         intkey<-rbind(intkey,intkeyt)
+         intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+         cntmp<-cntmp+1
+         cntmp2<-cntmp2+1
+        }
+        if (xwtmpus==1)
+        {
+         modlabel<-matrix(c(modlabel,intbrdxw[cntmp1,1]))
+         intkeyt<-matrix(c(intbrdxw[cntmp1,1],":",xcatlab[k1,1],"x",wcatlab[k2,1]," "," "),ncol=7)
+         intkey<-rbind(intkey,intkeyt)
+         cntmp1<-cntmp1+1
+         cntmp<-cntmp+1
+        }
        }
       }
       if (xwtmpus==0)
       {
        fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-(nxvls*nwvls)+1):ncol(outv)]),nrow=n)
+       intbrdxw<-matrix(intlbrd[1,2:ncol(intlbrd)])
        xwtmpus<-1
        if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
        for (k4 in (datcount:(datcount+((nwvls*nxvls)-1))))
@@ -1628,18 +2178,33 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
        wherew[2,(i-1)]<-start+nrow(wtmploc)-1+1
        start<-start+nrow(wtmploc)
       }         
+      intlbrd<-matrix("xxx");cntmp1<-1
       for (k2 in c(1:nwvls))
       {
        outv<-as.matrix(cbind(outv,(mtmp[,(j-1)]*wtmp[,k2])))
        if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
-       modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-       intkeyt<-matrix(c(intlab[cntmp,1],":",mnames[1,(j-1)],"x",wcatlab[k2,1]," "," "),ncol=7)
-       intkey<-rbind(intkey,intkeyt)
-       cntmp<-cntmp+1
+       if (mwtmpus[1,(j-1)]==0)
+       {
+        modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+        intkeyt<-matrix(c(intlab[cntmp2,1],":",mnames[1,(j-1)],"x",wcatlab[k2,1]," "," "),ncol=7)
+        intkey<-rbind(intkey,intkeyt)
+        intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+        cntmp<-cntmp+1
+        cntmp2<-cntmp2+1
+       }
+       if (mwtmpus[1,(j-1)]==1)
+       {
+        modlabel<-matrix(c(modlabel,intbrdmw[cntmp1,(j-1)]))
+        intkeyt<-matrix(c(intbrdmw[cntmp1,(j-1)],":",mnames[1,(j-1)],"x",wcatlab[k2,1]," "," "),ncol=7)
+        intkey<-rbind(intkey,intkeyt)
+        cntmp<-cntmp+1
+        cntmp1<-cntmp1+1
+       }        
       }
       if (mwtmpus[1,(j-1)]==0)
       {
        fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-nwvls+1):ncol(outv)]),nrow=n)
+       intbrdmw[1:(ncol(intlbrd)-1),(j-1)]<-matrix(intlbrd[1,2:ncol(intlbrd)])
        if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
        mwtmpus[1,(j-1)]<-1
        mw22<- -999
@@ -1688,20 +2253,35 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       wherez[1,(i-1)]<-start+1
       wherez[2,(i-1)]<-start+nrow(ztmploc)-1+1
       start<-start+nrow(ztmploc)
+      intlbrd<-matrix("xxx");cntmp1<-1
       for (k1 in c(1:nxvls))
       {for (k2 in c(1:nzvls))
        {        
         outv=as.matrix(cbind(outv,(xtmp[,k1]*ztmp[,k2])))
         if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}
-        modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-        intkeyt<-matrix(c(intlab[cntmp,1],":",xcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
-        intkey<-rbind(intkey,intkeyt)
-        cntmp<-cntmp+1
+        if (xztmpus==0)
+        {
+         modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+         intkeyt<-matrix(c(intlab[cntmp2,1],":",xcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
+         intkey<-rbind(intkey,intkeyt)
+         intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+         cntmp<-cntmp+1
+         cntmp2<-cntmp2+1
+        }
+        if (xztmpus==1)
+        {
+         modlabel<-matrix(c(modlabel,intbrdxz[cntmp1,1]))
+         intkeyt<-matrix(c(intbrdxz[cntmp1,1],":",xcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
+         intkey<-rbind(intkey,intkeyt)
+         cntmp<-cntmp+1
+         cntmp1<-cntmp1+1
+        }
        }
       }
       if (xztmpus==0)
       {
        fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-(nxvls*nzvls)+1):ncol(outv)]),nrow=n)
+       intbrdxz<-matrix(intlbrd[1,2:ncol(intlbrd)])
        if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}
        xztmpus<-1
        for (k4 in (datcount:(datcount+((nzvls*nxvls)-1)))){xztmplo<-matrix(c(xztmplo,k4))}       
@@ -1738,18 +2318,33 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
        wherez[2,(i-1)]<-start+nrow(ztmploc)-1+1
        start<-start+nrow(ztmploc)
       }    
+      intlbrd<-matrix("xxx");cntmp1<-1
       for (k2 in (1:nzvls))
       {
        outv=as.matrix(cbind(outv,(mtmp[,(j-1)]*ztmp[,k2])))
        if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}
-       modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-       intkeyt<-matrix(c(intlab[cntmp,1],":", mnames[1,(j-1)],"x",zcatlab[k2,1]," "," "),ncol=7)
-       intkey<-rbind(intkey,intkeyt)
-       cntmp<-cntmp+1
+       if (mztmpus[1,(j-1)]==0)
+       {
+        modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+        intkeyt<-matrix(c(intlab[cntmp2,1],":", mnames[1,(j-1)],"x",zcatlab[k2,1]," "," "),ncol=7)
+        intkey<-rbind(intkey,intkeyt)
+        intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+        cntmp<-cntmp+1
+        cntmp2<-cntmp2+1
+       }
+       if (mztmpus[1,(j-1)]==1)
+       {
+        modlabel<-matrix(c(modlabel,intbrdmz[cntmp1,(j-1)]))
+        intkeyt<-matrix(c(intbrdmz[cntmp1,(j-1)],":",mnames[1,(j-1)],"x",zcatlab[k2,1]," "," "),ncol=7)
+        intkey<-rbind(intkey,intkeyt)
+        cntmp1<-cntmp1+1
+        cntmp<-cntmp+1
+       }
       }
       if (mztmpus[1,(j-1)]==0)
       {
        fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-nzvls+1):ncol(outv)]),nrow=n)
+       intbrdmz[1:(ncol(intlbrd)-1),(j-1)]<-matrix(intlbrd[1,2:ncol(intlbrd)])
        if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}
        mztmpus[1,(j-1)]<-1
        mz22<- -999
@@ -1777,6 +2372,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      if ((j==1) & (wzcmat[i,j]==1))
      {
       if (wzdid==0)
+      intlbrd<-matrix("xxx");cntmp1<-1
       {
        for (k1 in (1:nwvls))
        {
@@ -1785,15 +2381,29 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
          outv<-as.matrix(cbind(outv,(wtmp[,k1]*ztmp[,k2]))) 
          if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}
          if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
-         modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-         intkeyt<-matrix(c(intlab[cntmp,1],":",wcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
-         intkey<-rbind(intkey,intkeyt)
-         cntmp<-cntmp+1
+         if (wztmpus==0)
+         {
+          modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+          intkeyt<-matrix(c(intlab[cntmp2,1],":",wcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
+          intkey<-rbind(intkey,intkeyt)
+          intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+          cntmp<-cntmp+1
+          cntmp2<-cntmp2+1
+         }
+         if (wztmpus==1)
+         {
+          modlabel<-matrix(c(modlabel,intbrdwz[cntmp1,1]))
+          intkeyt<-matrix(c(intbrdwz[cntmp1,1],":",wcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
+          intkey<-rbind(intkey,intkeyt)
+          cntmp<-cntmp+1
+          cntmp1<-cntmp1+1
+         }
         }
        }
        if (wztmpus==0)
        {
         fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-(nwvls*nzvls)+1):ncol(outv)]),nrow=n)
+        intbrdwz<-matrix(intlbrd[1,2:ncol(intlbrd)])
         if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}  
         if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
         wztmpus<-1
@@ -1808,6 +2418,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       wherewz[1,(i-1)]<-start+1
       wherewz[2,(i-1)]<-start+nrow(wztmplo)-1+1
       start<-start+nrow(wztmplo)
+      intlbrd<-matrix("xxx");cntmp1<-1
       for (k1 in (1:nxvls))
       {
        for (k2 in (1:nwvls))
@@ -1816,17 +2427,31 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
         {
          outv<-as.matrix(cbind(outv,(xtmp[,k1]*wtmp[,k2]*ztmp[,k3]))) 
          if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}  
-         if ((ncs > 0) & (wiscov > 0)){ccmatoff((i-1),wiscov)<-0}    
-         modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-         intkeyt<-matrix(c(intlab[cntmp,1],":",xcatlab[k1,1],"x",wcatlab[k2,1],"x",zcatlab[k3,1]),ncol=7)
-         intkey<-rbind(intkey,intkeyt) 
-         cntmp<-cntmp+1 
+         if ((ncs > 0) & (wiscov > 0)){ccmatoff((i-1),wiscov)<-0} 
+         if (xwztmpu==0)
+         {
+          modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+          intkeyt<-matrix(c(intlab[cntmp2,1],":",xcatlab[k1,1],"x",wcatlab[k2,1],"x",zcatlab[k3,1]),ncol=7)
+          intkey<-rbind(intkey,intkeyt) 
+          intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+          cntmp<-cntmp+1
+          cntmp2<-cntmp2+1 
+         }
+         if (xwztmpu==1)       
+         {  
+          modlabel<-matrix(c(modlabel,intbdxwz[cntmp1,1]))
+          intkeyt<-matrix(c(intbdxwz[cntmp1,1],":",xcatlab[k1,1],"x",wcatlab[k2,1],"x",zcatlab[k3,1]),ncol=7)
+          intkey<-rbind(intkey,intkeyt)
+          cntmp<-cntmp+1
+          cntmp1<-cntmp1+1
+         }
         }
        }
       }
       if (xwztmpu==0)
       {
        fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-(nxvls*nwvls*nzvls)+1):ncol(outv)]),nrow=n)
+       intbdxwz<-matrix(intlbrd[1,2:ncol(intlbrd)])
        if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0} 
        if ((ncs > 0) & (wiscov > 0)){ccmatoff((i-1),wiscov)<-0}
        xwztmpu<-1
@@ -1846,6 +2471,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      {
       if (wzdid==0)
       {
+       intlbrd<-matrix("xxx");cntmp1<-1
        for (k1 in (1:nwvls))
        {
         for (k2 in (1:nzvls))
@@ -1853,15 +2479,29 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
          outv<-as.matrix(cbind(outv,(wtmp[,k1]*ztmp[,k2])))
          if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}  
          if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
-         modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-         intkeyt<-matrix(c(intlab[cntmp,1],":",wcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
-         intkey<-rbind(intkey,intkeyt) 
-         cntmp<-cntmp+1
+         if (wztmpus==0)
+         {
+          modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+          intkeyt<-matrix(c(intlab[cntmp2,1],":",wcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
+          intkey<-rbind(intkey,intkeyt) 
+          intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+          cntmp<-cntmp+1
+          cntmp2<-cntmp2+1
+         }
+         if (wztmpus==1)
+         {
+          modlabel<-matrix(c(modlabel,intbrdwz[cntmp1,1]))
+          intkeyt<-matrix(c(intbrdwz[cntmp1,1],":",wcatlab[k1,1],"x",zcatlab[k2,1]," "," "),ncol=7)
+          intkey<-rbind(intkey,intkeyt)
+          cntmp<-cntmp+1
+          cntmp1<-cntmp1+1
+         }
         }
        }
        if (wztmpus==0)
        {
         fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-(nwvls*nzvls)+1):ncol(outv)]),nrow=n)
+        intbrdwz<-matrix(intlbrd[1,2:ncol(intlbrd)])
         if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}
         if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
         wztmpus<-1
@@ -1876,6 +2516,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
        wherewz[2,(i-1)]<-start+nrow(wztmplo)-1+1
        start<-start+nrow(wztmplo)
       }
+      intlbrd<-matrix("xxx");cntmp1<-1
       for (k1 in (1:nwvls))
       {
        for (k2 in (1:nzvls))
@@ -1883,15 +2524,30 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
         outv<-as.matrix(cbind(outv,(mtmp[,(j-1)]*wtmp[,k1]*ztmp[,k2])))
         if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0}  
         if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0} 
-        modlabel<-matrix(c(modlabel,intlab[cntmp,1]))
-        intkeyt<-matrix(c(intlab[cntmp,1],":",mnames[1,(j-1)],"x",wcatlab[k1,1],"x",zcatlab[k2,1]),ncol=7)
-        intkey<-rbind(intkey,intkeyt) 
-        cntmp<-cntmp+1
+        if (mwztmpu[1,(j-1)]==0)
+        {
+         modlabel<-matrix(c(modlabel,intlab[cntmp2,1]))
+         intkeyt<-matrix(c(intlab[cntmp2,1],":",mnames[1,(j-1)],"x",wcatlab[k1,1],"x",zcatlab[k2,1]),ncol=7)
+         intkey<-rbind(intkey,intkeyt) 
+         intlbrd<-cbind(intlbrd,matrix(intlab[cntmp2,1]))
+         cntmp<-cntmp+1
+         cntmp2<-cntmp2+1
+        }
+        if (mwztmpu[1,(j-1)]==1)
+        {
+         modlabel<-matrix(c(modlabel,intbdmwz[cntmp1,(j-1)]))
+         intkeyt<-matrix(c(intbdmwz[cntmp1,(j-1)],":",mnames[1,(j-1)],"x",wcatlab[k1,1],"x",zcatlab[k2,1]),ncol=7)
+         intkey<-rbind(intkey,intkeyt)
+         cntmp1<-cntmp1+1
+         cntmp<-cntmp+1
+        }
        }
       }
       if (mwztmpu[1,(j-1)]==0)
       {
        fulldat<-matrix(c(fulldat,outv[,(ncol(outv)-(nwvls*nzvls)+1):ncol(outv)]),nrow=n)
+       intbdmwz[1:(ncol(intlbrd)-1),(j-1)]<-matrix(intlbrd[1,2:ncol(intlbrd)])
+
        if ((ncs > 0) & (ziscov > 0)){ccmatoff[(i-1),ziscov]<-0} 
        if ((ncs > 0) & (wiscov > 0)){ccmatoff[(i-1),wiscov]<-0}
        mwztmpu[1,(j-1)]<-1
@@ -1927,6 +2583,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       if (ctmpuse[1,j]==0)
       {
        fulldat<-matrix(c(fulldat,ctmp[,j]),nrow=n)
+       fulldatr<-cbind(fulldatr,relcov[1,j])
        ctmpuse[1,j]<-1
        ctmploc[1,j]<-datcount
        datcount<-datcount+1
@@ -1978,6 +2635,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   vlabs<-matrix(vlabs[2:nrow(vlabs),1])
   fulldat<-as.data.frame(fulldat[,2:ncol(fulldat)])
   fulldat<-data.matrix(fulldat)
+  fulldatr=t(matrix(fulldatr[1,2:ncol(fulldatr)]))
   fochigh<-fochigh[1:max(nump),]
   whigh<-as.matrix(whigh[1:max(nump),])
   zhigh<-as.matrix(zhigh[1:max(nump),])
@@ -2052,6 +2710,29 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     {dototal<-0;alttotal<-1}
    }
   }
+
+  if (eivbad==0)
+  {
+   reltmp<-matrix(cbind(relx,relm,relcov))
+   reliabc1<-as.numeric(reltmp > 1);reliabc2<-as.numeric(reltmp <=0)
+   reliabck<-sum(reliabc1)+sum(reliabc2)
+   if (reliabck != 0){errcode[errs,1]<-84;errs<-errs+1;criterr<-1;eivbad<-1}
+  }  
+  if (eivdo==1) 
+  {
+   if (nxvls > 1)
+   {
+    mcxrel<-matrix(relx[1,1],1,(nxvls-1))
+    relx<-matrix(cbind(mcxrel,relx),nrow=1)
+    eivrel<-matrix(cbind(mcxrel,eivrel),nrow=1)
+   }
+   ssquares<-0;crossv<-0;stand<-0;subsets<-0;effsize<-0
+   dominate<-0;diagnose<-0;savediag<-0
+   if ((robustse==1) | (hc != 5))
+   {errcode[errs,1]<-87;errs<-errs+1;criterr<-1;robustse<-1;hc<-5}
+   modelres<-0;
+   #linsum<-matrix(-999);#nlinsum<-0;
+  }
  }
  # End D
  if ((criterr==0) & (ncs > 0))
@@ -2063,17 +2744,20 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  if (outscreen==1)
  {
   cat("\n")
-  cat("********************* PROCESS for R Version 4.3.1 ********************* \n \n")
+  cat("**************** PROCESS Procedure for R Version 5.0 ****************** \n \n")
   cat("           Written by Andrew F. Hayes, Ph.D.  www.afhayes.com              \n")
   cat("   Documentation available in Hayes (2022). www.guilford.com/p/hayes3   \n \n")
  }
  if (criterr==0)
  {
+  alldfbs<-matrix(999999,n,1)
   if ((stand==1) & (ydich==1)){stand<-0}
   anymod2<-sum(wcmat+zcmat+wzcmat)
-  if ((anymod2 > 0) & (stand==1))
-  {notecode[notes,1]<-27;notes<-notes+1;stand<-0}
-  rownames(modelvar)<-modelvlb
+  #if ((anymod2 > 0) & (stand==1))
+  #{notecode[notes,1]<-27;notes<-notes+1;stand<-0}
+  templb<-matrix(replicate(nrow(modelvar)," "))
+  templb[1:nrow(modelvlb),]<-modelvlb
+  rownames(modelvar)<-templb
   colnames(modelvar)<-" "
   funny<-1
   if (outscreen==1)
@@ -2083,11 +2767,21 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    cat("\n")
    if (ncs > 0)
    {
-   cat("Covariates: \n")
-   covname2<-c("      ", covnames)
-   covname2<-t(noquote(covname2))  
-   write.table(covname2,quote=FALSE,row.names=FALSE,col.names=FALSE)
-   cat("\n")
+   okcovpr<-1
+   covname9<-covnames
+   if (ncs==xfakecov){okcovpr<-0}
+   if (ncs > xfakecov)
+   {
+    covname9<-covname9[1,(xfakecov+1):ncol(covname9)]
+   }
+   if (okcovpr==1)
+    {
+    cat("Covariates: \n")
+    covname2<-c("      ", covname9)
+    covname2<-t(noquote(covname2))  
+    write.table(covname2,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    cat("\n")
+    }
    }
    cat("Sample size: ")
    write.table(n,quote=FALSE,row.names=FALSE,col.names=FALSE)
@@ -2100,13 +2794,31 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     write.table(seed,quote=FALSE,row.names=FALSE,col.names=FALSE)
     cat("\n")
    }
+   if (nspl > 0)
+   {
+    cat("Location of spline joints:\n")
+    rownames(spl)<-xnmspl
+    colnames(spl)<-nmspl
+    print(spl)
+    cat("\n")
+   }
+   if (clusok==1)
+   {
+    cat("Number of clusters and cluster size:\n")
+    clusinfp<-noquote(matrix(sprintf(decimals,clusinfo),nrow=nrow(clusinfo)))
+    rownames(clusinfp)<-c(" Number:","   Mean:","    Min:","    Max:")
+    colnames(clusinfp)<-" "
+    print(clusinfp,right=T)
+    cat("\n")
+   }
    #maxresm<-9;
    #resultm<-matrix(99999,1,maxresm)
   }  
    if (describe==1)
    {
-    means=apply(dat,2,mean);sdvec=apply(dat,2,sd);corall=cor(dat);
-    means<-rbind(t(matrix(means)),t(matrix(sdvec)))
+    means<-apply(dat,2,mean);sdvec<-apply(dat,2,sd);corall<-cor(dat)
+    descmins<-apply(dat,2,min);descmaxs<-apply(dat,2,max)
+    means<-rbind(t(matrix(means)),t(matrix(sdvec)),t(matrix(descmins)),t(matrix(descmaxs)))
     means2<-noquote(matrix(sprintf(decimals,means),nrow=nrow(means)))
     corall2<-noquote(matrix(sprintf(decimals,corall),nrow=nrow(corall)))
     #if (ncol(means) > 9)
@@ -2121,8 +2833,8 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      colnames(means2)<-varnames
      colnames(corall2)<-varnames
      rownames(corall2)<-varnames
-     rownames(means2)<-matrix(c("Mean","SD"))
-     cat("Variable means and standard deviations:\n")
+     rownames(means2)<-matrix(c("Mean","SD","Min","Max"))
+     cat("Variable descriptive statistics:\n")
      print(means2,right=T)
      cat("\n")
      cat("Variable intercorrelations (Pearson's r):\n")
@@ -2174,39 +2886,40 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   # START G LOOP
   for (i in c(1:(nms+nys)))
   {
-   if (outscreen==1)
-   {cat("\n*********************************************************************** \n")}
    highf<-matrix(0,1,5);highf2<-highf
    if ((i==(nms+nys)) & (ydich==1)){highf=matrix(0,1,3);highf2<-highf}
    flabel<-" "   
    y<-outvars[,i]
    xindx<-datindx[1:(nump[1,i]-1),i]
    x<-fulldat[,xindx]
+   if ((eivdo==1) & (ydich==0))
+   {
+    releiv<-matrix(fulldatr[1,xindx],nrow=1)
+    releiv<-matrix(cbind(1,releiv),nrow=1)
+    x2eiv<-cbind(y,x)
+    corbxx<-cor(x2eiv)
+    tolstat2<-matrix(9999,(ncol(x2eiv)-1),1)
+    for (tolcom in c(2:(ncol(x2eiv))))
+    {
+     riichoose<-diag(ncol(x2eiv))
+     riichoose[tolcom,tolcom]<-0
+     riichoose[1,1]<-1
+     riix<-riichoose%*%corbxx%*%t(riichoose)
+     riix[tolcom,tolcom]<-1
+     riiy<-matrix(corbxx[,tolcom])*matrix(diag(riichoose))
+     tolstat2[(tolcom-1),1]<-matrix(t(riiy)%*%solve(riix)%*%riiy)
+    }
+    tolstat2<-as.numeric(matrix(releiv[1,2:ncol(releiv)]) < tolstat2)
+    tolstat2<-sum(tolstat2)
+    if (tolstat2 > 0)
+    {criterr<-1;errcode[errs,1]<-85;errs<-errs+1}  
+    rm(x2eiv)
+   }
    x<-cbind(ones,x)
    xsq<-t(x)%*%x
    exsq<-eigen(xsq)
    exsq<-matrix(unlist(exsq[1]))
    zeroeig<-sum(as.numeric(exsq <= 0.000000000002))
-   if (outscreen==1)
-   {
-    cat("Outcome Variable: ")
-    write.table(outnames[i,1],quote=FALSE,row.names=FALSE,col.names=FALSE)
-    cat("\n")
-    if ((ydich==1) & (i==(nms+nys)))
-    {
-     cat("Coding of binary Y for logistic regression analysis:\n")
-     rcd<-noquote(matrix(sprintf(decimals,rcd),nrow=nrow(rcd)))
-     colnames(rcd)<-c(outnames[i,1], "Analysis")
-     rownames(rcd)<-t(matrix(replicate(nrow(rcd)," ")))
-     print(rcd,right=T)
-     cat("\n")
-    }
-   }
-   if (zeroeig > 0)
-   {
-    cat("\nSINGULAR OR NEAR SINGULAR DATA MATRIX.\n")
-    criterr<-1;errcode[errs,1]<-31;errs<-errs+1;
-   }    
    means<-colSums(x)/n
    vlabsm<-matrix(vlabs[labstart:(labstart+(nump[1,i]-1)),1])
    #START E
@@ -2214,31 +2927,81 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    {
     if ((ydich==0) | (i < (nms+nys)))
     {
-     modoutz<-process.modelest(y,x,1,1,xp2,hc)
-     modres<-matrix(unlist(modoutz[1]),nrow=nump[1,i])
-     direff<-matrix(modres,nrow=ncol(x))
-     #modresl<-matrix(unlist(modoutz[2]))  
-     modsum<-matrix(unlist(modoutz[3]))
-     tval<-matrix(unlist(modoutz[7]))
-     resid<-matrix(unlist(modoutz[8]))
-     modresid<-cbind(modresid,resid)
-     brsq2<-modsum[2,1]
-     dfres<-modsum[6,1]
-     #for recording results
-     outformres<-process.outform3(modsum,maxresm,resultm)
-     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-     outformres<-process.outform3(modres,maxresm,resultm)
-     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-     #end recording results
-     modrest9<-modres
-     modres<-noquote(matrix(sprintf(decimals,modres),nrow=nump[1,i]))
-     modsum<-noquote(matrix(sprintf(decimals,modsum),nrow=1))
-     b<-matrix(unlist(modoutz[5]))
-     varb<-matrix(unlist(modoutz[6]),nrow=nump[1,i])
-     dfmatt<-matrix(modsum[1,6],nrow(modres),1)
-     modsuml<-matrix(c("R","R-sq","MSE",hcflab,"df1","df2", "p"))
-     modresl<-t(matrix(c("coeff",hclab,"t","p","LLCI","ULCI")))
+     modoutz<-process.modelest(y,x,1,1,xp2,hc,0,0,ssquares,robustse,clusdat,current,nclus,alpha2,eivdo,releiv,eiv)
+     if (length(modoutz)==1)
+     {
+      eiverr<-1
+      errcode[errs,1]<-85;errs<-errs+1;criterr<-1
+     }
+
+     if (criterr==0)
+     {
+      modres<-matrix(unlist(modoutz[1]),nrow=nump[1,i])
+      direff<-matrix(modres,nrow=ncol(x))
+      #modresl<-matrix(unlist(modoutz[2]))  
+      modsum<-matrix(unlist(modoutz[3]))
+      modsuml<-matrix(unlist(modoutz[4]))
+  if (eivdo==1)
+  {
+   hclab<-matrix(c("se(HC0)","se(HC1)","se(HC2)","se(HC3)","se(HC4)","se"))
+   hclab<-hclab[(eiv+1),1]
+   hcflab<-matrix(c("F(HC0)","F(HC1)","F(HC2)","F(HC3)","F","F"))
+   hcflab<-hcflab[(eiv+1),1] 
+   if ((eiv < 4) & (eivhcnt==0)){notecode[notes,1]<-4;notes<-notes+1;eivhcnt<-1}
+  }
+      modsuml[4-(eivdo),1]<-hcflab
+      tval<-matrix(unlist(modoutz[7]))
+      dfres<-matrix(unlist(modoutz[21]))
+      intncd<-matrix(unlist(modoutz[23]))
+      if (eivdo==0)
+      {
+       resid<-matrix(unlist(modoutz[8]))
+       sumtable<-matrix(unlist(modoutz[9]),nrow=3)
+       crossr<-matrix(unlist(modoutz[10]),nrow=1)
+       zppout<-matrix(unlist(modoutz[11]),nrow=(nrow(modres)-1))
+        corall<-matrix(unlist(modoutz[12]),nrow=(nrow(modres)+2))
+       regdiag<-matrix(unlist(modoutz[13]),nrow=nrow(x))
+       zppout2<-matrix(unlist(modoutz[19]),nrow=(nrow(modres)-1))
+       tolstat<-matrix(unlist(modoutz[20]),nrow=(nrow(modres)-1))
+       regdiag[,1]<-rownum;
+       alldfbs<-cbind(alldfbs,regdiag[,(ncol(regdiag)-nrow(modres)+1):ncol(regdiag)])
+       bp<-matrix(unlist(modoutz[14]),ncol=2)
+       maxnmin<-matrix(unlist(modoutz[15]),nrow=3)
+       bpresult<-matrix(unlist(modoutz[16]),nrow=2)
+       qprime<-matrix(unlist(modoutz[17]))
+       modresdf<-matrix(unlist(modoutz[18]),ncol=nrow(modres))
+       skewres<-matrix(unlist(modoutz[22]),nrow=2)
+      }
+      if (modelres==1){modresid<-cbind(modresid,resid)}
+      brsq2<-modsum[2,1] 
+
+      #for recording results
+      outformres<-process.outform3(modsum,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      if (crossv==1)
+      {
+       outformres<-process.outform3(crossr,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      }
+      if (ssquares==1)
+      {
+       outformres<-process.outform3(sumtable,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      }
+      outformres<-process.outform3(modres,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      #end recording results
+      modrest9<-modres
+      modres<-noquote(matrix(sprintf(decimals,modres),nrow=nump[1,i]))
+      modsum<-noquote(matrix(sprintf(decimals,modsum),nrow=1))
+      b<-matrix(unlist(modoutz[5]))
+      varb<-matrix(unlist(modoutz[6]),nrow=nump[1,i])
+      dfmatt<-matrix(modsum[1,6],nrow(modres),1)
+      modresl<-t(matrix(c("coeff",hclab,"t","p","LLCI","ULCI")))
+     }
     }
+
+
     if ((ydich==1) & (i==(nms+nys)))
     {
      modoutz<-process.modelest(y,x,2,1,xp2,5,iterate,converge)
@@ -2263,15 +3026,74 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      dfmatt<-matrix(-999,nrow(modres),1)
     } 
     obscoeff<-cbind(obscoeff,t(b))
+
+
+   if (criterr==0)
+   {
+
+
+    if ((outscreen==1) & (criterr==0))
+    {
+     cat("\n*********************************************************************** \n")
+     if (eivdo==1)
+     {cat("                    Errors-in-variables regression \n\n")}
+     cat("Outcome Variable: ")
+     write.table(outnames[i,1],quote=FALSE,row.names=FALSE,col.names=FALSE)
+     cat("\n")
+     if ((ydich==1) & (i==(nms+nys)))
+     {
+      cat("Coding of binary Y for logistic regression analysis:\n")
+      rcd<-noquote(matrix(sprintf(decimals,rcd),nrow=nrow(rcd)))
+      colnames(rcd)<-c(outnames[i,1], "Analysis")
+      rownames(rcd)<-t(matrix(replicate(nrow(rcd)," ")))
+      print(rcd,right=T)
+      cat("\n")
+     }
+    }
+    if (zeroeig > 0)
+    {
+     cat("\nSINGULAR OR NEAR SINGULAR DATA MATRIX.\n")
+     criterr<-1;errcode[errs,1]<-31;errs<-errs+1;
+    } 
+
     if (outscreen==1)
     {
      cat("Model Summary: \n")
      colnames(modsum)<-modsuml;rownames(modsum)<-" "
      print(modsum,right=T)
      cat("\n")
+     if ((ydich==0) | (i < (nms+nys)))
+     {
+      if (crossv==1)
+      {
+       crossr<-noquote(matrix(sprintf(decimals,crossr),nrow=1))
+       rownames(crossr)<-" "
+       colnames(crossr)<-c("Browne","LvOut1","LvOut2")
+       cat("Shrunken R estimates \n")
+       print(crossr,right=T)
+       cat("\n")
+      }
+      if (ssquares==1)
+      {
+       sumtable<-noquote(matrix(sprintf(decimals,sumtable),nrow=3))
+       rownames(sumtable)<-c("Regress","Residual","Total")
+       colnames(sumtable)<-c("SS","df","MS")
+       print(sumtable,right=T)
+       cat("\n")
+      }
+     }     
      cat("Model: \n")
      rownames(modres)<-vlabsm;colnames(modres)<-modresl
-     print(modres,right=T)   
+     print(modres,right=T)  
+     if ((savediag==1) & (ydich==0) & (sv4match==0))
+     { 
+      if (i==1){diagout<-list();diagoutl<-list()}
+      regdiag<-as.data.frame(regdiag)
+      regdial<-c("casenum",t(vlabsm[2:nrow(vlabsm),1]),outnames[i,1],"pred","resid","d_resid","stresid","tresid","h","mahal","cook","dmsreg","drsq","dskew",t(dfbetas[1:nrow(modres),1]))    
+      #colnames(regdiag)<-c("rownum",t(vlabsm[2:nrow(vlabsm),1]),outnames[i,1],"pred","resid","d_resid","stresid","tresid","h","mahal","cook","dmsreg","drsq",t(dfbetas[1:nrow(modres),1]))   
+      diagout[[i]]<-regdiag   
+      diagoutl[[i]]<-regdial
+     } 
      if ((ydich==1) & (i==(nms+nys)))
      {
       cat("\nThese results are expressed in a log-odds metric.\n")
@@ -2282,7 +3104,13 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     conseqt<-matrix(outnames[i,1],nrow(modres),1)
     conseq<-matrix(c(conseq,conseqt))
     dfmat<-rbind(dfmat,dfmatt)
-    labstart<-labstart+nump[1,i] 
+    labstart<-labstart+nump[1,i]
+    for (jklm in c(1:nrow(modres))) 
+    {
+     savlabs[savlabsc,1]<-paste(outnames[i,1],"_",vlabsm[jklm],sep='')
+     savlabsc<-savlabsc+1;
+    }
+
 
     if (stand==1)
     {
@@ -2302,15 +3130,36 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      stdmod<-stdmod*predsd
      stdmod<-matrix(stdmod[2:nrow(stdmod),1])
      sdvlabs<-vlabsm[2:nrow(vlabsm),1]
-     if (outscreen==1){cat("\nStandardized coefficients:\n")}
-     outformres<-process.outform3(stdmod,maxresm,resultm,1)
-     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-     stdmod<-noquote(matrix(sprintf(decimals,stdmod),nrow=(nump[1,i]-1)))
-     colnames(stdmod)<-"coeff"
-     rownames(stdmod)<-sdvlabs
-     if (outscreen==1)
-     {print(stdmod,right=T)}
+     #if (outscreen==1){cat("\nStandardized coefficients:\n")}
+     #outformres<-process.outform3(stdmod,maxresm,resultm,1)
+     #maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+     #stdmod<-noquote(matrix(sprintf(decimals,stdmod),nrow=(nump[1,i]-1)))
+     #colnames(stdmod)<-"coeff"
+     #rownames(stdmod)<-sdvlabs
+     #if (outscreen==1)
+     #{print(stdmod,right=T)}
     }
+    if (stand==1 & ((i < (nms+nys)) | ((i==(nms+nys)) & ydich==0)))
+    {      
+     ivnames<-vlabsm[2:nrow(vlabsm),1]
+     outformres<-process.outform3(zppout,maxresm,resultm,1)
+     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm) 
+     outformres<-process.outform3(zppout2,maxresm,resultm,1)
+     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)     
+     if (outscreen==1)
+     {
+      cat("\nScale-free and standardized measures of association:\n")
+      zppout<-noquote(matrix(sprintf(decimals,zppout),nrow=(nrow(modres)-1)))
+      colnames(zppout)<-c("r","sr","pr","standYX","standY","standX")
+      rownames(zppout)<-ivnames
+      print(zppout,right=T)
+      cat("\n")
+      zppout2<-noquote(matrix(sprintf(decimals,zppout2),nrow=(nrow(modres)-1)))
+      colnames(zppout2)<-c("eta-sq","p_eta-sq","f-sq")
+      rownames(zppout2)<-ivnames
+      print(zppout2,right=T)
+     }
+    }    
     if ((nms > 0) & (serial==0) & (sum(numint)==0) & ((normal==1) | (mc > 0)))
     {
      if (i < (nms+nys))
@@ -2338,7 +3187,8 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      lmat[2:(1+nxvls),1]<-lmat2
      if (ydich != 1)
      {
-      diromni<-process.ftest3(lmat,b,varb,1,brsq2,0,y,x)
+      diromni<-process.ftest3(lmat,b,varb,1,brsq2,0,y,x,nclus,dfres)
+      diromni<-matrix(diromni[1,(1+eivdo):ncol(diromni)],nrow=1)
      }
      if (ydich==1){diromni<-process.llrtest3(lmat,y,x,b,basemod,iterate,converge)}
     }
@@ -2352,6 +3202,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       write.table(intkeym,quote=FALSE,row.names=FALSE,col.names=FALSE,sep = "  ")
      }
     }
+   
     if (covcoeff==1)
     {
      if (outscreen==1){cat("\nCovariance matrix of regression parameter estimates:\n")}
@@ -2362,6 +3213,63 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      if (outscreen==1)
      {print(varbpr,right=T)}
     }
+
+    if ((model==0) & (settest==1))
+    {
+     lmat2<-matrix(0,nrow(b),(nxset+setxcat))
+     lmat2[2:(nxset+setxcat+1),]<-diag(nxset+setxcat)
+     if (ydich != 1)
+     {
+      fresult2<-process.ftest3(lmat2,b,varb,chr=(1-eivdo),brsq2,1,y,x,nclus,dfres) 
+      if (outscreen==1)
+      {
+       settestf<-noquote(matrix(sprintf(decimals,fresult2),nrow=1))
+       {cat("\nHypothesis test for variables in X set:\n")
+       settstlb=t(matrix(c("R2-chng",hcflab,"df1","df2","p")))
+       if (eivdo==1){settstlb<-settstlb[1,2:ncol(settstlb)]}
+       colnames(settestf)<-settstlb;
+       rownames(settestf)<-" "
+       print(settestf,right=T)}
+      }
+      if (diagnose==1)
+      { 
+       zzzx<-x%*%lmat2
+       zzzx<-cbind(ones,zzzx)
+       bptestx<-0.5*(t(qprime)%*%zzzx%*%solve(t(zzzx)%*%zzzx)%*%t(zzzx)%*%qprime)
+       bprobusx<-bptestx*(2/((t(qprime)%*%qprime)/nrow(zzzx)))
+       bpresulx<-matrix(-999,2,3)
+       bpresulx[1,1]<-bptestx;bpresulx[1,2]<-ncol(lmat2);bpresulx[1,3]<-(1-pchisq(bptestx,ncol(lmat2)))
+       bpresulx[2,1]<-bprobusx;bpresulx[2,2]<-ncol(lmat2);bpresulx[2,3]<-(1-pchisq(bprobusx,ncol(lmat2)))
+       bpresxpt<-noquote(matrix(sprintf(decimals,bpresulx),nrow=nrow(bpresulx)))
+       colnames(bpresxpt)<-c("Chi-sq","df","p")
+       rownames(bpresxpt)<-c("Normal","Robust")
+       outformres<-process.outform3(bpresulx,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+       if (outscreen==1)
+       {
+        cat("\nBreusch-Pagan test of heteroskedasticity for variables in X set:\n")
+        print(bpresxpt,right=TRUE)
+       }
+      }
+     }
+     if (ydich==1)
+     { 
+      lmat2<-as.matrix(rowSums(lmat2)) 
+      fresult2<-process.llrtest3(lmat2,y,x,b,basemod,iterate,converge)  
+      if (outscreen==1)
+      {
+       settestf<-noquote(matrix(sprintf(decimals,fresult2),nrow=1))
+       {cat("\nLikelihood ratio test for variables in X set:\n")
+       colnames(settestf)<-matrix(c("Chi-sq","df","p"))
+       rownames(settestf)<-" "
+       print(settestf,right=T)}    
+      }
+     }
+     outformres<-process.outform3(fresult2,maxresm,resultm)
+     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)         
+    }
+
+
     #start X by M interaction */
     if ((model != 74) & (xmtest==1) & (nms > 0))
     {
@@ -2397,13 +3305,14 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
         }
         if ((i < (nms+nys)) | (ydich==0))
         {
-         modoutz<-process.modelest(y,x,1,1,xp2,hc)
+         #modoutz<-process.modelest(y,x,1,1,xp2,hc)
+         modoutz<-process.modelest(y,x,1,1,xp2,hc,0,0,ssquares,robustse,clusdat,current,nclus,alpha2)
          b<-matrix(unlist(modoutz[5]))
          varb<-matrix(unlist(modoutz[6]),nrow=nrow(b))
          lmat<-matrix(0,nrow(b),nxvls)
          lmattmp<-diag(nxvls)
          lmat[(nrow(lmat)-nxvls+1):nrow(lmat),]<-lmattmp
-         fresult2<-process.ftest3(lmat,b,varb,0,0,1,y,x)
+         fresult2<-process.ftest3(lmat,b,varb,0,0,1,y,x,nclus,dfres)
          numxint<-numxint+1
          xmtst[numxint,]<-fresult2
         }
@@ -2466,7 +3375,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       {         
        if ((i < (nms+nys)) | (ydich != 1))
        {
-        fresult2<-process.ftest3(lmat,b,varb,chr=1,brsq2,0,y,x)
+        fresult2<-process.ftest3(lmat,b,varb,chr=1,brsq2,0,y,x,nclus,dfres)
         lmatdb<-lmat
         dbint=dbint<-1
        }
@@ -2495,7 +3404,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       {
        if ((i < (nms+nys)) | (ydich != 1))
        {
-        fresult2<-process.ftest3(lmat,b,varb,chr=1,brsq2,0,y,x)
+        fresult2<-process.ftest3(lmat,b,varb,chr=1,brsq2,0,y,x,nclus,dfres)
         dbint<-dbint+1             
        }
        if ((ydich==1) & (i==(nms+nys)))
@@ -2519,7 +3428,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
        {fresult2<-process.llrtest3(lmatdb,y,x,b,basemod,iterate,converge)}       
        if ((ydich != 1) | (i < (nms+nys)))
        {
-        fresult2<-process.ftest3(lmatdb,b,varb,chr=1,brsq2,0,y,x)
+        fresult2<-process.ftest3(lmatdb,b,varb,chr=1,brsq2,0,y,x,nclus,dfres)
        }
        dbint<-0 
        highf<-rbind(highf,fresult2)
@@ -2533,7 +3442,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       {
        if ((i < (nms+nys)) | (ydich != 1))
        {
-        fresult2<-process.ftest3(lmat2,b,varb,chr=1,brsq2,0,y,x)
+        fresult2<-process.ftest3(lmat2,b,varb,chr=1,brsq2,0,y,x,nclus,dfres)
        }
        if ((ydich==1) & (i==(nms+nys)))
        {fresult2<-process.llrtest3(lmat2,y,x,b,basemod,iterate,converge)}
@@ -2667,7 +3576,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      }
      #End A
      xprobval<-as.matrix(xmodvals)
-     if ((nxvls > 1) | (mcx > 0)){xprobval<-as.matrix(dummatx[,2:ncol(dummatx)])}
+     if (((nxvls > 1) | (mcx > 0)) & (nspl < 1)){xprobval<-as.matrix(dummatx[,2:ncol(dummatx)])}
      #Start B
      if ((wcmat[(i+1),jmed]==1) & (zcmat[(i+1),jmed]==0))
      {
@@ -3152,7 +4061,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
        }
        condeff<-t(omni3)%*%b
        condeff3<-rbind(condeff3,condeff)
-       fresult2<-process.ftest3(omni3,b,varb,chr=0,brsq2,1,y,x)
+       fresult2<-process.ftest3(omni3,b,varb,chr=0,brsq2,1,y,x,nclus,dfres)
 
        if ((i==(nms+nys)) & (ydich==1))
        {
@@ -3313,7 +4222,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
              }
             }
            }
-           fresult2<-process.ftest3(omni,b,varb,0,brsq2,1,y,x)
+           fresult2<-process.ftest3(omni,b,varb,0,brsq2,1,y,x,nclus,dfres)
            if ((i == (nms+nys)) & (ydich==1))
            {
             fratio<-fresult2[1,1]*nxvls
@@ -3393,9 +4302,10 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
         {
          if (criterr==0)
          {
-          dfres<-(n-nrow(b));
+          #dfres<-(n-nrow(b));
           roots<-as.matrix(99999)
-          jncrit<-(dfres* (exp((dfres-(5/6))*((xp2/(dfres-(2/3)+(.11/dfres)))*(xp2/(dfres-(2/3)+(.11/dfres)))))-1))
+          #jncrit<-(dfres* (exp((dfres-(5/6))*((xp2/(dfres-(2/3)+(.11/dfres)))*(xp2/(dfres-(2/3)+(.11/dfres)))))-1))
+          jncrit<-(-qt(alpha2,dfres))*(-qt(alpha2,dfres))
           if ((i ==(nms+nys)) & (ydich==1)){jncrit<-xp2*xp2}
           jnb1<-b[wherejn1,1]
           jnb3<-b[wherejn3,1]
@@ -3480,6 +4390,10 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
           } 
           outformres<-process.outform3(jnvals,maxresm,resultm)
           maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+          modjnplt<-jnvals[,1]
+          effjnplt<-jnvals[,2]
+          llcijnpt<-jnvals[,6]
+          ulcijnpt<-jnvals[,7]
           jnvals2<-noquote(matrix(sprintf(decimals,jnvals),nrow=nrow(jnvals)))
           rownames(jnvals2)<-t(matrix(replicate(nrow(jnvals)," ")))
           if ((i < nms+nys) | (ydich==0))
@@ -3488,12 +4402,34 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
           {colnames(jnvals2)<-c(jnmodlab,"effect","se","Z", "p", "LLCI", "ULCI")}
           if (outscreen==1)
           {
+           jnplt<-focpred[1,2]
            if (((wcmat[(i+1),jmed]==1) | (zcmat[(i+1),jmed]==1)) & (wzcmat[(i+1),jmed]==0))
            {cat("\nConditional effect of focal predictor at values of the moderator:\n");print(jnvals2,right=T)}          
            if ((jmed==1) & (wzcmat[(i+1),jmed]==1))
-           {cat("\nConditional X*W interaction at values of the moderator Z:\n");print(jnvals2,right=T)}   
+           {cat("\nConditional X*W interaction at values of the moderator Z:\n");print(jnvals2,right=T);jnplt<-"X*W"}   
            if ((jmed > 1) & (wzcmat[(i+1),jmed]==1))
-           {cat("\nConditional M*W interaction at values of the moderator Z:\n");print(jnvals2,right=T)} 
+           {cat("\nConditional M*W interaction at values of the moderator Z:\n");print(jnvals2,right=T);jnplt<-"M*W"} 
+           if (plot > 0)
+           {
+            dev.new()
+            opar<-par(no.readonly=TRUE)
+            par(mfrow = c(1,1))
+            plot(x=modjnplt,y=effjnplt,type="l",pch=19,lwd=3,ylim=c(min(llcijnpt),max(ulcijnpt)),
+            ylab=paste("Conditional effect of",jnplt,"on",outnames[i,1]),
+            xlab=jnmodlab,col="red")
+            points(modjnplt,llcijnpt,lwd=2,lty=2,type="l",col="black")
+            points(modjnplt,ulcijnpt,lwd=2,lty=2,type="l",col="black")
+            abline(h=0,untf = FALSE,lty=3,lwd=1,col="red")
+            if (nrts > 0)
+            {
+             for (ijn in c(1:nrts))
+             {
+             abline(v=roots[ijn,1],untf=FALSE,lty=3,lwd=1)
+             text(roots[ijn,1],min(llcijnpt),roots2[ijn,1],cex=0.8)
+             }
+            }
+            par(opar)
+           }
           }  
          }
         }
@@ -3565,6 +4501,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
 	if ((plot==1) | (plot==2))
       { 
        datalabs<-cbind(t(focpred[,2]),outnames[i,1])
+       doplot<-as.numeric(length(datalabs)==3)
        if (plot==2)
        {datalabs<-c(datalabs,"se", "LLCI", "ULCI")}
        if ((i==(nms+nys)) & (ydich==1))
@@ -3577,6 +4514,49 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
        if (outscreen==1)
        {cat("\nData for visualizing the conditional effect of the focal predictor:\n")
        print(probepnt,right=T)}
+       #generate interaction plot
+       if (doplot==1)
+       {
+        dev.new()
+        yplt<-probeplt[,3]
+        plt1<-1;plt2<-2;
+        horaxis<-datalabs[1]
+        grpaxis<-datalabs[2]
+        veraxis<-datalabs[3]
+        if (ydich==1){yplt<-probeplt[,3];veraxis<-paste("Log Odds(",datalabs[3],")")}
+        if (((xdich==1) | (nxvls > 1)) & (horaxis==xnames))
+        {
+         plt1<-2;plt2<-1;horaxis<-datalabs[2];grpaxis<-datalabs[1]
+        }
+        c1plt<-probeplt[,plt1];c1pltvls<-unique(probeplt[,plt1])
+        c2plt<-probeplt[,plt2];c2pltvls<-unique(probeplt[,plt2])
+        opar<-par(no.readonly=TRUE)
+        par(mfrow = c(1,1)) 
+        layout(rbind(1,2), heights=c(7,1))
+        plot(y=yplt,x=c1plt,pch=15,col="white",
+        xlab=horaxis,
+        ylab=veraxis)
+        legend.txt<-"0"
+        linestpl<-rep(1:5,4)
+        lineclpl<-rep(c("black","blue","red","purple"),5)
+        if (length(c2pltvls) < 6)
+        {linestpl=c(1,2,3,4,5);lineclpl<-rep("black",5)}
+        for (lgnd in c(1:length(c2pltvls)))
+        {
+         legend.txt<-cbind(legend.txt,paste(grpaxis,"=",sprintf(decimals,c2pltvls[lgnd])))
+        }
+        legend.txt<-legend.txt[2:length(legend.txt)]
+        for (pltcnt in c(1:length(c2pltvls)))
+        {
+         lines(c1plt[c2plt==c2pltvls[pltcnt]],yplt[c2plt==c2pltvls[pltcnt]],lwd=2,lty=linestpl[pltcnt],col=lineclpl[pltcnt])
+        }
+        par(mar=c(0,0,0,0))
+        plot.new()
+        if (length(c2pltvls) < 4){plotcols<-length(c2pltvls)}
+        if (length(c2pltvls) > 3){plotcols<-3}
+        legend("center",legend=legend.txt,lty=linestpl[1:length(c2pltvls)],lwd=2,col=lineclpl[1:length(c2pltvls)],ncol=plotcols)
+        par(opar)
+       }
       }    
      }      
      #End E
@@ -3607,156 +4587,495 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       if (i > 1){mest74<-cbind(mest74,mest74t)}      
     }
 
-    #linear sum
-    if (ydich==0)
-    {
+    #linear sum    
      if ((i==(nms+nys)) & (model >= 0) & (model < 4) & (linsum[1,1] != -999))
      {
-      lhyprob<-1;meansub<-0
-      if (((nlinsum==nrow(b)) | (nlinsum==(nrow(b)-ncs))))
-      {
-       if ((nlinsum ==(nrow(b)-ncs)) & (ncs > 0))
+      lhyprob<-1;meansub<-0;covsubok<-0;    
+      if (nlinsum==nrow(b)){lhyprob<-0}
+      if ((nlinsum ==(nrow(b)-ncs)) & (ncs > 0) & (model != 0))
+       {lhyprob<-0;covsubok<-1;covmean2<-covmeans}
+      if ((nlinsum==(nrow(b)-ncs+xfakecov)) & (model==0) & (lhyprob==1))
        {
-        linsum<-cbind(linsum,covmeans)
-        meansub<-1
+        covmean2<-matrix(covmeans[1,(xfakecov+1):ncol(covmeans)],nrow=1)
+        covsubok<-1;lhyprob<-0
+       } 
+      if (lhyprob==0)
+       {
+        if (covsubok==1)
+         {linsum<-cbind(linsum,covmean2);meansub<-1}
+        lhyprob<-0;hypest<-linsum%*%b
+        sehypest<-sqrt(linsum%*%varb%*%t(linsum))
+        if (ydich==0)
+         {
+          phypest<-2*(pt((-abs(hypest/sehypest)),dfres))
+          hypest<-matrix(c(hypest,sehypest,(hypest/sehypest),phypest,(hypest-tval*sehypest),(hypest+tval*sehypest)),ncol=6)
+         }
+        if (ydich==1)
+         {
+          phypest<-2*(pnorm(-abs(hypest/sehypest)))
+          hypest<-matrix(c(hypest,sehypest,(hypest/sehypest),phypest,(hypest-xp2*sehypest),(hypest+xp2*sehypest)),ncol=6)
+         }
+        outformres<-process.outform3(t(linsum),maxresm,resultm,1)
+        maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+        outformres<-process.outform3(hypest,maxresm,resultm)
+        maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+        if (outscreen==1)
+        {
+         hyplabs<-c("Estimate",hclab,"t","p","LLCI","ULCI")
+         if (ydich==1)
+          {hyplabs<-c("Estimate","se","Z","p","LLCI","ULCI")}
+         cat("\n----------\n")
+         cat("Linear Combination Estimate and Hypothesis Test\n")
+         linsumpt<-noquote(matrix(sprintf(decimals,linsum),ncol=1))
+         colnames(linsumpt)<-"weight"
+         rownames(linsumpt)<-vlabsm
+         cat("\nWeight vector:\n")
+         print(linsumpt,right=TRUE)
+         hypestpt<-noquote(matrix(sprintf(decimals,hypest),ncol=6))
+         colnames(hypestpt)<-hyplabs
+         rownames(hypestpt)<-" "
+         cat("\n")
+         print(hypestpt,right=TRUE)
+         if (meansub==1)
+         {cat("\nCovariate weight(s) set to the sample mean.\n")}
+        }
        }
-       lhyprob<-0;hypest<-linsum%*%b
-       sehypest<-sqrt(linsum%*%varb%*%t(linsum))
-       phypest<-2*(pt((-abs(hypest/sehypest)),dfres))
-       hypest<-matrix(c(hypest,sehypest,(hypest/sehypest),phypest,(hypest-tval*sehypest),(hypest+tval*sehypest)),ncol=6)
-       outformres<-process.outform3(t(linsum),maxresm,resultm,1)
+      if (lhyprob==1){notecode[notes,1]<-30;notes<-notes + 1}
+     }
+     if (((subsets==1) | (dominate==1)) & (model==0) & (ydich==0))
+     {     
+      numbx<-ncol(x)-nxvls
+      subdomin<-1
+      if ((numbx < 2) | (numbx > 15))
+       {notecode[notes,1]<-40;notes<-notes+1;subdomin<-0;dominate<-0}
+      if (subdomin==1)
+      {
+       rsqrmat<-matrix(0,((2^numbx)-1),(numbx+2))
+       dommat<-matrix(0,numbx,numbx)
+       desc5x<-corall[2:(numbx+nxvls),2:(numbx+nxvls)]
+       allcomp<-(2^(numbx-2))
+       domx<-matrix(0,1,numbx)
+       domx2<-matrix(0,1,(numbx+(nxvls-1)))
+       for (jss in (1:((2^numbx)-1)))
+       {
+        domx[1,1]<-domx[1,1]+1
+        for (iss in (1:numbx))
+        {
+         if (domx[1,iss]==2)
+         {domx[1,iss]<-0;domx[1,(iss+1)]<-domx[1,(iss+1)]+1}
+        }
+        rsqrmat[jss,1:(ncol(rsqrmat)-2)]<-domx
+        xdumsone<-matrix(0,1,nxvls)
+        if (domx[1,1]==1)
+         {xdumsone<-matrix(1,1,nxvls)}
+        domx2<-cbind(xdumsone,t(as.matrix(domx[1,2:ncol(domx)])))
+        rii<-(t(domx2)%*%domx2)*desc5x
+        bin<-matrix(0,1,(numbx+nxvls-1))
+        for (ksss in (1:(numbx+nxvls-1)))
+         {rii[ksss,ksss]<-1;bin[1,ksss]<-(2^(ksss-1))}       
+        riy<-corall[1,2:(numbx+nxvls)]*domx2
+        rsqtmp<-(riy%*%solve(rii)%*%t(riy))
+        rsqrmat[jss,numbx+1]<-rsqtmp
+        rsqrmat[jss,numbx+2]<-1-((1-rsqtmp)*(n-1)/(n-(sum(domx)+(domx[1,1]*(nxvls-1))+1)))
+        rsqrmat[jss,1:numbx]<-domx
+       }
+       rsqrmats<-rsqrmat[order(rsqrmat[,(ncol(rsqrmat)-0)]),]
+       if ((outscreen==1) & (subsets==1))
+       {  
+        rsqrmatf<-noquote(matrix(sprintf(decimals,rsqrmats),ncol=ncol(rsqrmats)))
+        colnames(rsqrmatf)<-cbind(t(varnames[2:nrow(varnames),1]),"R-sq","Adj R-sq")
+        rownames(rsqrmatf)<-matrix(replicate(nrow(rsqrmat)," "))
+        cat("\nAll subsets regression results\n")
+        print(rsqrmatf,right=TRUE)
+       }
+       if (subsets==1)
+       {
+        outformres<-process.outform3(rsqrmats,maxresm,resultm)
+        maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+       }
+      }
+     }
+    if (dominate==1)
+    {
+     for (idmt in (1:(numbx-1)))
+      {
+       for (jdmt in ((idmt+1):numbx))
+       {
+        critdiff<-bin[1,jdmt]-bin[1,idmt]
+        for (kdmt in (1:nrow(rsqrmat)))
+        {
+         if ((rsqrmat[kdmt,idmt]==1) & (rsqrmat[kdmt,jdmt]==0))
+         {
+          tmps<-cbind(rsqrmat[kdmt,(numbx+1)],rsqrmat[(kdmt+critdiff),(numbx+1)])
+          if (tmps[1,1] > tmps[1,2])
+           {dommat[idmt,jdmt]<-(dommat[idmt,jdmt]+1)}           
+          if (tmps[1,1] < tmps[1,2])
+           {dommat[jdmt,idmt]<-(dommat[jdmt,idmt]+1)} 
+         }
+        }
+       }
+      }
+      dommat<-dommat/allcomp
+      outformres<-process.outform3(dommat,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      if (outscreen==1)
+      {
+       dommatf<-noquote(matrix(sprintf(decimals,dommat),ncol=ncol(dommat)))
+       rownames(dommatf)<-varnames[2:nrow(varnames),1]
+       colnames(dommatf)<-t(varnames[2:nrow(varnames),1])
+       cat("\nDominance matrix\n")
+       print(dommatf,right=TRUE)
+      }
+     }
+     if (diagnose==1)
+     {
+      if (ydich==0)
+      {
+       bp<-cbind(bp,rownum)
+       bp<-bp[order(bp[,1]),]
+       bp<-matrix(bp[nrow(bp),],nrow=1)
+       if ((bp[1,1]==abs(maxnmin[3,1])) & (maxnmin[3,1] < 0))
+       {bp[1,1]<-(-bp[1,1])}  
+       wadf<-matrix(0,ncol(modresdf),2)
+       for (wadf1 in c(1:ncol(modresdf)))
+       {
+        for (wadf2 in c(1:nrow(modresdf)))
+        {
+         if ((abs(modresdf[wadf2,wadf1])) > abs(wadf[wadf1,2]))
+         {
+          wadf[wadf1,2]<-modresdf[wadf2,wadf1] 
+          wadf[wadf1,1]<-rownum[wadf2,1] 
+         }                     
+        }
+       }    
+       maxmnpnt<-noquote(matrix(sprintf(decimals,maxnmin),nrow=nrow(maxnmin)))
+       colnames(maxmnpnt)<-c("Min.","Max.")
+       rownames(maxmnpnt)<-c("fitted","residual","t-resid")
+       skewrpnt<-noquote(matrix(sprintf(decimals,skewres),nrow=nrow(skewres)))
+       colnames(skewrpnt)<-c("Skewness","Kurtosis")
+       rownames(skewrpnt)<-c("Value","se")
+       bppnt<-noquote(matrix(sprintf(decimals,bp),nrow=nrow(bp)))
+       colnames(bppnt)<-c("t-resid","p-value","casenum")
+       rownames(bppnt)<-" "
+       wadfpnt<-noquote(matrix(sprintf(decimals,wadf),nrow=nrow(wadf)))
+       colnames(wadfpnt)<-c("casenum","dfbeta")
+       rownames(wadfpnt)<-vlabsm
+       tolstat<-cbind(tolstat,(1/tolstat))
+       tolspnt<-noquote(matrix(sprintf(decimals,tolstat),ncol=2))
+       colnames(tolspnt)<-c("Tol.","VIF")
+       rownames(tolspnt)<-matrix(vlabsm[2:nrow(vlabsm),])
+       bprespnt<-noquote(matrix(sprintf(decimals,bpresult),nrow=nrow(bpresult)))
+       colnames(bprespnt)<-c("Chi-sq","df","p")
+       rownames(bprespnt)<-c("Normal","Robust")
+       outformres<-process.outform3(maxnmin,maxresm,resultm)
        maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-       outformres<-process.outform3(hypest,maxresm,resultm)
+       outformres<-process.outform3(skewres,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+       outformres<-process.outform3(bp,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+       outformres<-process.outform3(wadf,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+       outformres<-process.outform3(tolstat,maxresm,resultm)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+       outformres<-process.outform3(bpresult,maxresm,resultm)
        maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
        if (outscreen==1)
        {
-        hyplabs<-c("Estimate",hclab,"t","p","LLCI","ULCI")
-        cat("\n----------\n")
-        cat("Linear Combination Estimate and Hypothesis Test\n")
-        linsumpt<-noquote(matrix(sprintf(decimals,linsum),ncol=1))
-        colnames(linsumpt)<-"weight"
-        rownames(linsumpt)<-vlabsm
-        cat("\nWeight vector:\n")
-        print(linsumpt,right=TRUE)
-        hypestpt<-noquote(matrix(sprintf(decimals,hypest),ncol=6))
-        colnames(hypestpt)<-hyplabs
-        rownames(hypestpt)<-" "
-        cat("\n")
-        print(hypestpt,right=TRUE)
-        if (meansub==1)
-        {cat("\nCovariate weight(s) set to the sample mean.\n")}
+        cat("-----------\n")
+        cat("Some regression diagnostics:\n\n")
+        print(maxmnpnt,right=TRUE)
+        cat("\nShape of residuals:\n")
+        print(skewrpnt,right=TRUE)
+        cat("\nBonferroni-corrected p for largest t-residual\n")
+        print(bppnt,right=TRUE)
+        cat("\nMost influential observations\n")
+        print(wadfpnt,right=TRUE)
+        cat("\nVariable tolerance and VIF\n")
+        print(tolspnt,right=TRUE)
+        cat("\nBreusch-Pagan test of heteroskedasticity\n")
+        print(bprespnt,right=TRUE)
        }
       }
-      if (lhyprob==1){notecode[notes,1]<-30;notes<-notes + 1}
      }
-    }
+   }
+
   }
   #END G LOOP
-  lastb<-b
-  lastcov<-varb
+  if (criterr==0)
+  {lastb<-b;lastcov<-varb}
   if ((criterr==0) & (dototal==1))
   {
    x<-xtmp
+   releiv<-cbind(1,relx);
    vlabsm<-matrix(c("constant",xcatlab[1:nxvls,1]))
    if (ncs > 0)
    {
     x<-cbind(as.matrix(x),as.matrix(ctmp))
     vlabsm<-matrix(c(vlabsm,t(covnames)))
+    releiv<-cbind(releiv,relcov)
    }
+   releiv<-t(matrix(releiv))
    x<-cbind(ones,x)
-   modoutz<-process.modelest(y,x,1,1,xp2,hc)
-   modsum<-matrix(unlist(modoutz[3]))
-   modres<-matrix(unlist(modoutz[1]),nrow=ncol(x))
-   toteff<-matrix(modres,nrow=ncol(x))
-   toteff<-matrix(toteff[2:(1+nxvls),],nrow=nxvls)
-   nodotot<-0
-   if ((xdich==1) & (xmint==1) & (model==74))
+   #modoutz<-process.modelest(y,x,1,1,xp2,hc,0,0,ssquares)
+   modoutz<-process.modelest(y,x,1,1,xp2,hc,0,0,ssquares,robustse,clusdat,current,nclus,alpha2,eivdo,releiv,eiv)
+   if (length(modoutz)==1)
    {
-    toteff[,1]<-toteff[,1]*xscaling
-    toteff[,2]<-toteff[,2]*abs(xscaling)
-    toteff[,3]<-toteff[,3]*xscaling
-    toteff[,5]<-toteff[,5]*xscaling
-    toteff[,6]<-toteff[,6]*xscaling
-    citmp<-t(matrix(toteff[,5:6]))
-    if (xscaling < 0)
-    {
-     toteff[,5]<-citmp[,2]
-     toteff[,6]<-citmp[,1]
-    }
-    nodotot<-1
+    eiverr<-1
+    errcode[errs,1]<-85;errs<-errs+1;criterr<-1
    }
-   if (outscreen==1)
+   if (criterr==0)
    {
-    if (nodotot==0)
-    {cat("\n************************ TOTAL EFFECT MODEL *************************** \n")}
-    if (nodotot==1)
-    {cat("\n*********************************************************************** \n")}
-    cat("Outcome Variable: ")
-    write.table(outnames[nrow(outnames),1],quote=FALSE,row.names=FALSE,col.names=FALSE)
-    cat("\n")
-   }
-   outformres<-process.outform3(modsum,maxresm,resultm)
-   maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-   modsum<-noquote(matrix(sprintf(decimals,modsum),nrow=1))
-   outformres<-process.outform3(modres,maxresm,resultm)
-   maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-   modres<-noquote(matrix(sprintf(decimals,modres),nrow=ncol(x)))
-   varb<-matrix(unlist(modoutz[6]),nrow=ncol(x))
-   brsq2<-modsum[1,2]
-   b<-matrix(unlist(modoutz[5]))
-   colnames(modsum)<-modsuml;rownames(modsum)<-" "
-   rownames(modres)<-vlabsm;colnames(modres)<-modresl
-   if (outscreen==1)
-   {
-    cat("Model Summary: \n")
-    print(modsum,right=T)
-    cat("\n")
-    cat("Model: \n")
-    print(modres,right=T)
-   }   
-   totefflb<-modresl
-   toteffl2<-vlabsm[2:(1+nxvls),]
-   lmat<-matrix(0,nrow(b),1)
-   lmat2<-matrix(1,nxvls,1)
-   lmat[2:(1+nxvls),1]<-lmat2
-   if (ydich != 1)
-   {totomni<-process.ftest3(lmat,b,varb,1,brsq2,0,y,x)} 
-   if (stand==1)
-   {
-    predsd<-matrix(0,nrow(modres),1)
-    stdmod<-as.numeric(modres[,1])/ovsd[nrow(ovsd),1]
-    for (jd in c(1:ncol(x)))
-    {predsd[jd,1]<-sd(x[,jd])}   
-    if ((wherex[1,ncol(wherex)] != -999) & ((nxvls > 1) | (xdich==1)))  
-    {  
-     sdmsone<-matrix(1,nxvls,1)
-     predsd[wherex[1,ncol(wherex)]:wherex[2,ncol(wherex)],1]<-sdmsone    
-     pstog<-1    
-    }
-    predsd[1,1]<-1
-    stdmod<-stdmod*predsd
-    stdmod<-matrix(stdmod[2:nrow(stdmod),1])
-    sdvlabs<-vlabsm[2:nrow(vlabsm),1]
-    outformres<-process.outform3(stdmod,maxresm,resultm,1)
-    maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
-    stdmod<-noquote(matrix(sprintf(decimals,stdmod),(nrow(b)-1)))
-    colnames(stdmod)<-"coeff"
-    rownames(stdmod)<-sdvlabs
-    if (outscreen==1)
-    {cat("\nStandardized coefficients:\n")
-     print(stdmod,right=T)}
-   }   
 
-   if (covcoeff==1)
-   {
-    varbpr<-noquote(matrix(sprintf(decimals,varb),nrow=nrow(b)))
-    rownames(varbpr)<-vlabsm;colnames(varbpr)<-vlabsm
+    modsum<-matrix(unlist(modoutz[3]))
+    modres<-matrix(unlist(modoutz[1]),nrow=ncol(x))
+    toteff<-matrix(modres,nrow=ncol(x))
+    toteff<-matrix(toteff[2:(1+nxvls),],nrow=nxvls)
+    nodotot<-0
+    if ((xdich==1) & (xmint==1) & (model==74))
+    {
+     toteff[,1]<-toteff[,1]*xscaling
+     toteff[,2]<-toteff[,2]*abs(xscaling)
+     toteff[,3]<-toteff[,3]*xscaling
+     toteff[,5]<-toteff[,5]*xscaling
+     toteff[,6]<-toteff[,6]*xscaling
+     citmp<-t(matrix(toteff[,5:6]))
+     if (xscaling < 0)
+     {
+      toteff[,5]<-citmp[,2]
+      toteff[,6]<-citmp[,1]
+     }
+     nodotot<-1
+    }
     if (outscreen==1)
     {
-     cat("\nCovariance matrix of regression parameter estimates:\n")
-     print(varbpr,right=T)
-     outformres<-process.outform3(varb,maxresm,resultm)
+     if (nodotot==0)
+     {cat("\n************************ TOTAL EFFECT MODEL *************************** \n")}
+     if (eivdo==1)
+     {cat("                    Errors-in-variables regression \n\n")}
+     if (nodotot==1)
+     {cat("\n*********************************************************************** \n")}
+     cat("Outcome Variable: ")
+     write.table(outnames[nrow(outnames),1],quote=FALSE,row.names=FALSE,col.names=FALSE)
+     cat("\n")
+    }
+    outformres<-process.outform3(modsum,maxresm,resultm)
+    maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+    modsum<-noquote(matrix(sprintf(decimals,modsum),nrow=1))
+    varb<-matrix(unlist(modoutz[6]),nrow=ncol(x))
+    dfres<-matrix(unlist(modoutz[21]))
+    intncd<-matrix(unlist(modoutz[23]))
+    if (eivdo==0)
+    {
+     sumtable<-matrix(unlist(modoutz[9]),nrow=3)
+     crossr<-matrix(unlist(modoutz[10]),nrow=1)
+     zppout<-matrix(unlist(modoutz[11]),nrow=(nrow(modres)-1))
+     regdiag<-matrix(unlist(modoutz[13]),nrow=nrow(x))
+     regdiag[,1]<-rownum;
+     bp<-matrix(unlist(modoutz[14]),ncol=2)
+     maxnmin<-matrix(unlist(modoutz[15]),nrow=3)
+     bpresult<-matrix(unlist(modoutz[16]),nrow=2)
+     modresdf<-matrix(unlist(modoutz[18]),ncol=nrow(modres))
+     zppout2<-matrix(unlist(modoutz[19]),nrow=(nrow(modres)-1))
+     tolstat<-matrix(unlist(modoutz[20]),nrow=(nrow(modres)-1))
+     skewres<-matrix(unlist(modoutz[22]),nrow=2) 
+
+    }
+    brsq2<-modsum[1,2]
+    b<-matrix(unlist(modoutz[5]))
+    colnames(modsum)<-modsuml;rownames(modsum)<-" "
+    rownames(modres)<-vlabsm;colnames(modres)<-modresl
+    if (outscreen==1)
+    {
+     cat("Model Summary: \n")
+     print(modsum,right=T)
+     cat("\n")
+    }
+    if ((ydich==0) | (i < (nms+nys)))
+    {
+     if (crossv==1)
+     {
+      outformres<-process.outform3(crossr,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      if (outscreen==1)
+      {
+       crossr<-noquote(matrix(sprintf(decimals,crossr),nrow=1))
+       rownames(crossr)<-" "
+       colnames(crossr)<-c("Browne","LvOut1","LvOut2")
+       cat("Shrunken R estimates \n")
+       print(crossr,right=T)
+       cat("\n")
+      }
+     }
+     if (ssquares==1)
+     {
+      outformres<-process.outform3(sumtable,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      if (outscreen==1)
+      {
+       sumtable<-noquote(matrix(sprintf(decimals,sumtable),nrow=3))
+       rownames(sumtable)<-c("Regress","Residual","Total")
+       colnames(sumtable)<-c("SS","df","MS")
+       cat("ANOVA Summary Table \n")
+       print(sumtable,right=T)
+       cat("\n")
+      }
+     }     
+
+     outformres<-process.outform3(modres,maxresm,resultm)
+     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+     modres<-noquote(matrix(sprintf(decimals,modres),nrow=ncol(x)))
+     if (outscreen==1)
+     {
+      cat("Model: \n")
+      rownames(modres)<-vlabsm;colnames(modres)<-modresl
+      print(modres,right=T)
+     }
+    }
+    if ((savediag==1) & (ydich==0) & (sv4match==0))
+    {
+     regdiag<-as.data.frame(regdiag)
+     regdial<-c("casenum",t(vlabsm[2:nrow(vlabsm),1]),outnames[nrow(outnames),1],"pred","resid","d_resid","stresid","tresid","h","mahal","cook","dmsreg","drsq","dskew",t(dfbetas[1:nrow(modres),1]))    
+     diagout[[(nrow(outnames)+1)]]<-regdiag   
+     diagoutl[[(nrow(outnames)+1)]]<-regdial
+    }  
+    totefflb<-modresl
+    toteffl2<-vlabsm[2:(1+nxvls),]
+    lmat<-matrix(0,nrow(b),1)
+    lmat2<-matrix(1,nxvls,1)
+    lmat[2:(1+nxvls),1]<-lmat2
+    if (ydich != 1)
+    {
+     totomni<-process.ftest3(lmat,b,varb,1,brsq2,0,y,x,nclus,dfres)
+     totomni<-matrix(totomni[1,(1+eivdo):ncol(totomni)],nrow=1)
+    }
+  
+    if (stand==1)
+    {
+     predsd<-matrix(0,nrow(modres),1)
+     stdmod<-as.numeric(modres[,1])/ovsd[nrow(ovsd),1]
+     for (jd in c(1:ncol(x)))
+     {predsd[jd,1]<-sd(x[,jd])}   
+     if ((wherex[1,ncol(wherex)] != -999) & ((nxvls > 1) | (xdich==1)))  
+     {  
+      sdmsone<-matrix(1,nxvls,1)
+      predsd[wherex[1,ncol(wherex)]:wherex[2,ncol(wherex)],1]<-sdmsone    
+      pstog<-1    
+     }
+     predsd[1,1]<-1
+     stdmod<-stdmod*predsd
+     stdmod<-matrix(stdmod[2:nrow(stdmod),1])
+     sdvlabs<-vlabsm[2:nrow(vlabsm),1]
+     #outformres<-process.outform3(stdmod,maxresm,resultm,1)
+     #maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+     #stdmod<-noquote(matrix(sprintf(decimals,stdmod),(nrow(b)-1)))
+     #colnames(stdmod)<-"coeff"
+     #rownames(stdmod)<-sdvlabs
+     #if (outscreen==1)
+     #{cat("\nStandardized coefficients:\n")
+     # print(stdmod,right=T)}
+    }
+    if (stand==1 & ((i < (nms+nys)) | ((i==(nms+nys)) & ydich==0)))
+    {      
+     ivnames<-vlabsm[2:nrow(vlabsm),1]
+     outformres<-process.outform3(zppout,maxresm,resultm,1)
+     maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm) 
+     outformres<-process.outform3(zppout2,maxresm,resultm,1)
      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)     
+     if (outscreen==1)
+     {
+      cat("\nScale-free and standardized measures of association:\n")
+      #cat("and completely standardized regression weights (stand):\n")
+      zppout<-noquote(matrix(sprintf(decimals,zppout),nrow=(nrow(modres)-1)))
+      colnames(zppout)<-c("r","sr","pr","standYX","standY","standX")
+      rownames(zppout)<-ivnames
+      print(zppout,right=T)
+      cat("\n")
+      zppout2<-noquote(matrix(sprintf(decimals,zppout2),nrow=(nrow(modres)-1)))
+      colnames(zppout2)<-c("eta-sq","p_eta-sq","f-sq")
+      rownames(zppout2)<-ivnames
+      print(zppout2,right=T)
+     }
+    }  
+ 
+    if (covcoeff==1)
+    {
+     varbpr<-noquote(matrix(sprintf(decimals,varb),nrow=nrow(b)))
+     rownames(varbpr)<-vlabsm;colnames(varbpr)<-vlabsm
+     if (outscreen==1)
+     {
+      cat("\nCovariance matrix of regression parameter estimates:\n")
+      print(varbpr,right=T)
+      outformres<-process.outform3(varb,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)     
+     }
+    }
+    if (diagnose==1)
+    {
+     if ((ydich==0) | (i < (nms+nys)))
+     {
+      bp<-cbind(bp,rownum)
+      bp<-bp[order(bp[,1]),]
+      bp<-matrix(bp[nrow(bp),],nrow=1)
+      if ((bp[1,1]==abs(maxnmin[3,1])) & (maxnmin[3,1] < 0))
+      {bp[1,1]<-(-bp[1,1])}    
+      wadf<-matrix(0,ncol(modresdf),2)
+      for (wadf1 in c(1:ncol(modresdf)))
+      {
+       for (wadf2 in c(1:nrow(modresdf)))
+       {
+        if ((abs(modresdf[wadf2,wadf1])) > abs(wadf[wadf1,2]))
+        {
+         wadf[wadf1,2]<-modresdf[wadf2,wadf1] 
+         wadf[wadf1,1]<-rownum[wadf2,1] 
+        }                     
+       }
+      }   
+      maxmnpnt<-noquote(matrix(sprintf(decimals,maxnmin),nrow=nrow(maxnmin)))
+      colnames(maxmnpnt)<-c("Min.","Max.")
+      rownames(maxmnpnt)<-c("fitted","residual","t-resid")
+      skewrpnt<-noquote(matrix(sprintf(decimals,skewres),nrow=nrow(skewres)))
+      colnames(skewrpnt)<-c("Skewness","Kurtosis")
+      rownames(skewrpnt)<-c("Value","se")
+      bppnt<-noquote(matrix(sprintf(decimals,bp),nrow=nrow(bp)))
+      colnames(bppnt)<-c("t-resid","p-value","casenum")
+      rownames(bppnt)<-" "
+      wadfpnt<-noquote(matrix(sprintf(decimals,wadf),nrow=nrow(wadf)))
+      colnames(wadfpnt)<-c("casenum","dfbeta")
+      rownames(wadfpnt)<-vlabsm
+      tolstat<-cbind(tolstat,(1/tolstat))
+      tolspnt<-noquote(matrix(sprintf(decimals,tolstat),ncol=2))
+      colnames(tolspnt)<-c("Tol.","VIF")
+      rownames(tolspnt)<-matrix(vlabsm[2:nrow(vlabsm),])
+      bprespnt<-noquote(matrix(sprintf(decimals,bpresult),nrow=nrow(bpresult)))
+      colnames(bprespnt)<-c("Chi-sq","df","p")
+      rownames(bprespnt)<-c("Normal","Robust")
+      outformres<-process.outform3(maxnmin,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      outformres<-process.outform3(skewres,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      outformres<-process.outform3(bp,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      outformres<-process.outform3(wadf,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      outformres<-process.outform3(bpresult,maxresm,resultm)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+      if (outscreen==1)
+      {
+       cat("-----------\n")
+       cat("Some regression diagnostics:\n\n")
+       print(maxmnpnt,right=TRUE)
+       cat("\nShape of residuals:\n")
+       print(skewrpnt,right=TRUE)
+       cat("\nBonferroni-corrected p for largest t-residual\n")
+       print(bppnt,right=TRUE)
+       cat("\nMost influential observations\n")
+       print(wadfpnt,right=TRUE)
+       cat("\nVariable tolerance and VIF\n")
+       print(tolspnt,right=TRUE)
+       cat("\nBreusch-Pagan test of heteroskedasticity\n")
+       print(bprespnt,right=TRUE)
+      }
+     }    
     }
    } 
   }
@@ -3783,12 +5102,12 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
 
  #DO BOOTSTRAPPING
  if ((criterr==0) & (boot > 0))
- { 
+ {
   bootres<-matrix(-999,1,sum(nump))
   bootdir<-obsdirfx
   natdirbt<-matrix(-999,1,nxvls)
   if (effsize==1){bootysd<-matrix(-999,1,1);bootxsd<-matrix(-999,1,1)}
-  badboot<-0;goodboot<-0;smallest<-1;booting<-1
+  badboot<-0;eiverrc<-0;goodboot<-0;smallest<-1;booting<-1;singerc<-0;
   j<-1
   if (outscreen==1)
   {
@@ -3798,93 +5117,134 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    bootprog<-txtProgressBar(min=0,max=boot,char=">",width=62,style=3)}
    if (progress !=1){cat("Bootstrapping in progress. Please wait.\n");flush.console()}
   }
+  v<-matrix(0,n,1)
+  ones2<-matrix(1,n,1)
   while ((goodboot < boot) & (j <= maxboot))
   {
    if ((outscreen==1) & (progress==1)){setTxtProgressBar(bootprog,j)}   
-   nobootx<-1;modres2<-999;bad<-0;
+   nobootx<-1;modres2<-999;v4<-matrix(999999);bad<-0;eiverrct<-0;singcnt<-0
+   if ((clusok==1) & (clusboot > 0))
+   {clusdat<-clusdat[order(clusdat[,3]),]}
    v<-as.matrix(trunc(runif(n)*n)+1)
+   if ((clusok==1) & (clusboot > 0))
+   {
+    for (clbt in (c(1:nclus)))
+    {
+     if (clusboot==1)
+     {
+      isht<-matrix(clusdat[current[clbt,3]:current[clbt,4],1])   
+      v2<-as.matrix(trunc(runif(current[clbt,2])*current[clbt,2])+1)
+      v[current[clbt,3]:current[clbt,4],1]<-matrix(isht[v2,1])
+     }
+     if (clusboot > 1)
+     {
+      v2<-as.matrix(trunc(runif(1)*nclus)+1)
+      isht<-matrix(clusdat[current[v2,3]:current[v2,4],1])
+      v4<-matrix(rbind(v4,isht))
+     }
+    }
+    if (clusboot > 1)
+    {
+     v<-matrix(v4[2:nrow(v4),1])
+     ones2<-matrix(1,nrow(v),1)
+    } 
+   }
    for (i in (1:(nms+nys)))
    {
     y<-as.matrix(outvars[v,i])
-    ynovar<-sum((y-(sum(y)/nrow(y)))*(y-(sum(y)/nrow(y))))
-    if (ynovar==0){bad<-1}
+    #ynovar<-sum((y-(sum(y)/nrow(y)))*(y-(sum(y)/nrow(y))))
+    if (sd(y) <= .00000000001){bad<-1}
     xindx<-datindx[1:(nump[1,i]-1),i]
     hello<-0
     x<-as.matrix(fulldat[v,xindx])
-    x<-cbind(ones,x)
+    x<-cbind(ones2,x)
     xsq<-t(x)%*%x
     exsq<-eigen(xsq)
     exsq<-matrix(unlist(exsq[1]))
     holymoly<-min(exsq)
     zeroeig<-sum(as.numeric(exsq <= 0.000000000002))
     bad<-bad+as.numeric(zeroeig > 0)
-    bad=bad+as.numeric(sd(y)==0)
+    #bad<-bad+as.numeric(sd(y) <= .00000000001)
+    singcnt<-as.numeric(zeroeig > 0)
     if (bad==0)
     {
      if (holymoly < smallest){smallest<-holymoly}
      if ((ydich==0) | (i < (nms+nys)))
-     {modrest<-process.modelest(y,x,type=1,full=0,xp2,hc)}
+     {
+      if (eivdo==1)
+      {
+       releiv<-matrix(fulldatr[1,xindx],nrow=1)
+       releiv<-matrix(cbind(1,releiv),nrow=1)
+      }
+      modrest<-process.modelest(y,x,type=1,full=0,xp2,hc,0,0,ssquares,robustse,clusdat,current,nclus,alpha2,eivdo,releiv,eiv)
+      eiverr<-0
+      if (length(modrest)==1)
+      {eiverr<-1;bad<-1;eiverrct<-1}
+     }
      if ((ydich==1) & (i==(nms+nys)))
      {modrest<-process.modelest(y,x,3,0,xp2,hc,iterate,converge)}
-     modres2<-as.matrix(c(modres2,modrest))
-     if (i==(nms+nys))
+     if (bad==0)
      {
-      if (bcmat[(i+1),1]==1)
-      {bootdir<-rbind(bootdir,t(modrest[wherex[1,i]:wherex[2,i],1]))}             
-      if (bcmat[(i+1),1]==0)
-      {bootdir<-rbind(bootdir,dirzes)}         
-     }
-                   
-     if ((model==74) & (i <= nms))
-     {
-      onetemp<-matrix(1,nrow(xprobval),1)
-      mestmtb<-cbind(onetemp,xprobval)
-      if (ncs > 0)
-      {        
-       ncovmdlb<-sum(ccmat[i,])
-       if (ncovmdl > 0)
-       {
-        cvmncb<-matrix(1,nrow(mestmtb),ncovmdlb)
-        cvmnctmp<-t(matrix(apply(matrix(x[,(ncol(x)-ncovmdl+1):ncol(x)],nrow=nrow(x)),2,mean)))                
-        if (cuscoval > 0){cvmnctmp<-coval}
-        for (mestlp in c(1:ncovmdlb))
-        {cvmncb[,mestlp]<-cvmncb[,mestlp]*cvmnctmp[,mestlp]}
-        mestmtb<-cbind(mestmtb,cvmncb)
-       }
-      }
-      mestbt<-mestmtb%*%modrest
-      if (i == 1){mestb<-mestbt}
-      if (i > 1){mestb<-cbind(mestb,mestbt)}
-     }
-     if ((model==74) & (i==(nms+nys)))
-     {
-      xvalptmp<-matrix(0,1,nxvls)
-      mest74sp<-matrix(0,1,nms)
-      mest74sp<-rbind(mest74sp,mestb)
-      xvalptmp<-rbind(xvalptmp,diag(nxvls))
-      dirfxcf<-matrix(0,nrow(mestb),1)         
-      for (cfloop1 in (1:nrow(mestb)))
+      modres2<-as.matrix(c(modres2,modrest))
+      if (i==(nms+nys))
       {
-       ndirfx<-matrix(0,nrow(modrest),1)
-       ndirfx[2:(nxvls+1),1]<-t(xvalptmp[cfloop1,])
-       for (cfloop3 in (1:nms))
-       {
-        if ((mcx==1) | (mcx==0))
-        {ndirfx[wheremw[(1+((cfloop3-1)*2)),ncol(wheremw)]:wheremw[(2+((cfloop3-1)*2)),ncol(wheremw)]]<-t(xvalptmp[cfloop1,]*mestb[1,cfloop3])}
-        if (mcx==2)
-        {ndirfx[wheremw[(1+((cfloop3-1)*2)),ncol(wheremw)]:wheremw[(2+((cfloop3-1)*2)),ncol(wheremw)]]<-t(xvalptmp[cfloop1,]*mest74sp[cfloop1,cfloop3])}
-       }
-       if (cfloop1 > 1){dirfxcf[cfloop1,1]<-t(ndirfx)%*%modrest*xscaling}
+       if (bcmat[(i+1),1]==1)
+       {bootdir<-rbind(bootdir,t(modrest[wherex[1,i]:wherex[2,i],1]))}             
+       if (bcmat[(i+1),1]==0)
+       {bootdir<-rbind(bootdir,dirzes)}         
       }
-      natdirbt<-rbind(natdirbt,t(dirfxcf[2:nrow(dirfxcf),]))
-     }
+                    
+      if ((model==74) & (i <= nms))
+      {
+       onetemp<-matrix(1,nrow(xprobval),1)
+       mestmtb<-cbind(onetemp,xprobval)
+       if (ncs > 0)
+       {        
+        ncovmdlb<-sum(ccmat[i,])
+        if (ncovmdl > 0)
+        {
+         cvmncb<-matrix(1,nrow(mestmtb),ncovmdlb)
+         cvmnctmp<-t(matrix(apply(matrix(x[,(ncol(x)-ncovmdl+1):ncol(x)],nrow=nrow(x)),2,mean)))                
+         if (cuscoval > 0){cvmnctmp<-coval}
+         for (mestlp in c(1:ncovmdlb))
+         {cvmncb[,mestlp]<-cvmncb[,mestlp]*cvmnctmp[,mestlp]}
+         mestmtb<-cbind(mestmtb,cvmncb)
+        }
+       }
+       mestbt<-mestmtb%*%modrest
+       if (i == 1){mestb<-mestbt}
+       if (i > 1){mestb<-cbind(mestb,mestbt)}
+      }
+      if ((model==74) & (i==(nms+nys)))
+      {
+       xvalptmp<-matrix(0,1,nxvls)
+       mest74sp<-matrix(0,1,nms)
+       mest74sp<-rbind(mest74sp,mestb)
+       xvalptmp<-rbind(xvalptmp,diag(nxvls))
+       dirfxcf<-matrix(0,nrow(mestb),1)         
+       for (cfloop1 in (1:nrow(mestb)))
+       {
+        ndirfx<-matrix(0,nrow(modrest),1)
+        ndirfx[2:(nxvls+1),1]<-t(xvalptmp[cfloop1,])
+        for (cfloop3 in (1:nms))
+        {
+         if ((mcx==1) | (mcx==0))
+         {ndirfx[wheremw[(1+((cfloop3-1)*2)),ncol(wheremw)]:wheremw[(2+((cfloop3-1)*2)),ncol(wheremw)]]<-t(xvalptmp[cfloop1,]*mestb[1,cfloop3])}
+         if (mcx==2)
+         {ndirfx[wheremw[(1+((cfloop3-1)*2)),ncol(wheremw)]:wheremw[(2+((cfloop3-1)*2)),ncol(wheremw)]]<-t(xvalptmp[cfloop1,]*mest74sp[cfloop1,cfloop3])}
+        }
+        if (cfloop1 > 1){dirfxcf[cfloop1,1]<-t(ndirfx)%*%modrest*xscaling}
+       }
+       natdirbt<-rbind(natdirbt,t(dirfxcf[2:nrow(dirfxcf),]))
+      }
            
-     if ((bcmat[(i+1),1]==1) & (nobootx==1) & (effsize==1))
-     {
-      nobootx<-0
-      xsdtemp<-sum((x[,2]-(sum(x[,2])/nrow(x)))*(x[,2]-(sum(x[,2])/nrow(x))))
-      xsdtemp<-sqrt(xsdtemp/(nrow(x)-1))
-     }
+      if ((bcmat[(i+1),1]==1) & (nobootx==1) & (effsize==1))
+      {
+       nobootx<-0
+       xsdtemp<-sum((x[,2]-(sum(x[,2])/nrow(x)))*(x[,2]-(sum(x[,2])/nrow(x))))
+       xsdtemp<-sqrt(xsdtemp/(nrow(x)-1))
+      }
+     }   
     }
    }
    if (bad==0)
@@ -3900,7 +5260,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     }
     goodboot<-goodboot+1
    }
-   if (bad != 0){badboot<-badboot+1}
+   if (bad != 0){badboot<-badboot+1;eiverc<-eiverc+eiverrct;singerc<-singerc+singcnt}
    j<-j+1
   }
   bootres<-as.matrix(bootres[2:nrow(bootres),])
@@ -3916,11 +5276,11 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    if (effsize==1){bootysd<-rbind(ysd,bootysd);bootxsd<-rbind(xsd,bootxsd)}
    if (saveboot==1)
    {
-    savlabs<-matrix(" ",ncol(bootres))
-    for (i in c(1:ncol(bootres))){savlabs[i,1]<-paste("col",i,sep='')}
+    #savlabs<-matrix(" ",ncol(bootres))
+    savlabs<-savlabs[1:(savlabsc-1),1]
+    #for (i in c(1:ncol(bootres))){savlabs[i,1]<-paste("col",i,sep='')}
     boots<-as.data.frame(bootres)
     colnames(boots)<-savlabs
-    #assign("process.boots", boots, envir = .GlobalEnv)
    }
    if (modelbt==1)
    {   
@@ -4030,6 +5390,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      {cat("\nRelative total effects of X on Y:\n")
      print(toteff2,right=T)}
      clabtmp<-c("R2-chng", hcflab, "df1","df2","p")
+     if (eivdo==1){clabtmp<-clabtmp[2:5]}
      outformres<-process.outform3(totomni,maxresm,resultm)
      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
      totomni2<-noquote(matrix(sprintf(decimals,totomni),nrow=nrow(totomni)))
@@ -4095,7 +5456,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     rownames(diromni2)<-" "
     if (ydich==0)
     {  
-     colnames(diromni2)<-c("R2-chng", hcflab, "df1","df2","p")
+     diromnlb<-c("R2-chng", hcflab, "df1","df2","p")
+     if (eivdo==1){diromnlb<-diromnlb[2:5]}
+     colnames(diromni2)<-diromnlb
      if (outscreen==1)
      {cat("\nOmnibus test of direct effect of X on Y:\n")
      print(diromni2,right=T)}
@@ -4322,6 +5685,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   {
    if ((nms==1) & (contrast > 0)){contrast<-0}
    efloop<-(((1-as.numeric(effsize==0))*2)+1)-((((mcx>0) | (xdich==1)))*(1-as.numeric(effsize==0)))
+   if ((diagnose==1) | (savediag==1))
+    {alldfbs<-alldfbs[,2:ncol(alldfbs)]}
+   dfindfx<-matrix(999,n,1)
    for (kk in (1:efloop))
    {
     if (boot==0)
@@ -4342,11 +5708,23 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      for (j in (1:nxvls))
      {
       indtemp<-matrix(1,nrow(bootres),1)
+      dfabtemp=matrix(1,n,1)
       for (k in (1:indmake[i,1]))
       {
        jtemp<-1
        if ((j > 1) & (k==1)){jtemp<-j}
        indtemp<-indtemp*bootres[,pathsfoc[jtemp,indmake[i,(k+1)]]]
+       if (kk==1)
+       {
+        if ((ydich==0) & ((diagnose==1) | (savediag==1)))
+        {
+         dfabtemp<-dfabtemp*matrix((bootres[1,pathsfoc[jtemp,indmake[i,(k+1)]]]-alldfbs[,pathsfoc[jtemp,indmake[i,(k+1)]]]))
+        }
+       }
+      }
+      if ((kk==1) & (ydich==0) & ((diagnose==1) | (savediag==1)))
+      {
+       dfindfx<-cbind(dfindfx,(indtemp[1,1]-dfabtemp))
       }
       if (kk==2){indtemp<-indtemp/bootysd}
       if (kk==3){indtemp<-((bootxsd*indtemp)/bootysd)}
@@ -4370,7 +5748,25 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      }
     }
     indtab<-matrix(indtab[2:nrow(indtab),],nrow=(nrow(indtab)-1))
-    if (kk==1){indtabn<-matrix(indtabn[2:nrow(indtabn),],nrow=(nrow(indtabn)-1))}
+    if (kk==1)
+    {
+     indtabn<-matrix(indtabn[2:nrow(indtabn),],nrow=(nrow(indtabn)-1))
+     if ((ydich==0) & ((diagnose==1) | (savediag==1))) 
+     {
+      wadfie<-matrix(0,(ncol(dfindfx)-1),2)
+      for (wadf1ie in (1:(ncol(dfindfx)-1)))
+      {
+       for (wadf2ie in (1:nrow(dfindfx)))
+       {
+        if ((abs(dfindfx[wadf2ie,(wadf1ie+1)])) > abs(wadfie[wadf1ie,2]))
+        {
+         wadfie[wadf1ie,2]<-dfindfx[wadf2ie,(wadf1ie+1)] 
+         wadfie[wadf1ie,1]<-rownum[wadf2ie,1] 
+        }                     
+       }
+      }
+     }
+    }
     rowlbs<-matrix(indlbl[1:nrow(indtab),1])
     rowbls3<-rowlbs
     if (mc > 0)
@@ -4510,27 +5906,43 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       {contlbs<-matrix("(C1)")}    
       rowlbs<-rbind(rowlbs,contlbs)
      }
-     outformres<-process.outform3(indtab,maxresm,resultm,1)
+     if ((kk==1) | ((kk==2) & ((xdich==1) | (mcx > 0))) | (kk==3))
+     {outformres<-process.outform3(indtab,maxresm,resultm,1)}
      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
      indtab5<-noquote(matrix(sprintf(decimals,indtab),nrow=nrow(indtab)))
      colnames(indtab5)<-bootlbs
      rownames(indtab5)<-rowlbs
+     if ((kk==1) & (ydich==0) & (diagnose==1))
+     {
+      outformres<-process.outform3(wadfie,maxresm,resultm,1)
+      maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+     }
      if (outscreen==1)
      {
       if (kk==1)
       {
        cat("\nIndirect effect(s) of X on Y:\n")
        print(indtab5,right=T)
+	 dfielabs<-rowlbs[(2-as.numeric(nms==1)):((2-as.numeric(nms==1))+nrow(indmake)-1),1]
+       if ((ydich==0) & (diagnose==1))
+       {
+        wadfiep<-noquote(matrix(sprintf(decimals,wadfie),nrow=nrow(wadfie)))
+	  dfierlbs<-c("casenum","dfb_ie")
+        colnames(wadfiep)<-dfierlbs
+        rownames(wadfiep)<-dfielabs
+        cat("\nCases with greatest influence on indirect effects:\n")
+        print(wadfiep,right=T)
+       }
       }
 
       if ((kk==2) & ((xdich==1) | (mcx > 0)))
       {
-       cat("\nPartially standardized indirect effect(s) of X on Y:\n")
+       cat("\nPartially standardized (StandY) indirect effect(s) of X on Y:\n")
        print(indtab5,right=T)
       }
       if (kk==3)
       {
-       cat("\nCompletely standardized indirect effect(s) of X on Y:\n")
+       cat("\nCompletely standardized (StandYX) indirect effect(s) of X on Y:\n")
        print(indtab5,right=T)
       }
      }
@@ -4581,14 +5993,16 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
      if (outscreen==1)
      { 
       if (kk==1){cat("\nRelative indirect effects of X on Y:\n")}
-      if (kk==2){cat("\nPartially standardized relative indirect effects of X on Y:\n")}
-      if (kk==3){cat("\nCompletely standardized relative indirect effects of X on Y:\n")}
+      if (kk==2){cat("\nPartially standardized (StandY) relative indirect effects of X on Y:\n")}
+      if (kk==3){cat("\nCompletely standardized (StandYX) relative indirect effects of X on Y:\n")}
      }
      for (i in (1:nrow(indmake)))
      {
       indtabsm<-indtab[(((i-1)*nxvls)+1):(nxvls*i),]
       indkeyt<-indkey[i,]
-      if (outscreen==1)
+	if ((diagnose==1) & (ydich==0))
+       {wadfies<-wadfie[(((i-1)*nxvls)+1):(nxvls*i),]}
+	if (outscreen==1)
       {
        cat("\n")
        write.table(t(indkeyt),quote=FALSE,row.names=FALSE,col.names=FALSE,sep=" ")
@@ -4601,8 +6015,25 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       indtasm2<-noquote(matrix(sprintf(decimals,indtabsm),nrow=nrow(indtabsm)))
       colnames(indtasm2)<-bootlbs
       rownames(indtasm2)<-direffl2
+      if ((kk==1) & (ydich==0) & (diagnose==1))
+      {
+       outformres<-process.outform3(wadfies,maxresm,resultm,1)
+       maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+	}
       if (outscreen==1)
-      {print(indtasm2,right=T)}
+      {
+       print(indtasm2,right=T)
+	 if ((ydich==0) & (kk==1) & (diagnose==1))
+       {
+        wadfiesp<-noquote(matrix(sprintf(decimals,wadfies),nrow=nrow(wadfies)))
+	  dfierlbs<-c("casenum","dfb_ie")
+        colnames(wadfiesp)<-dfierlbs
+        rownames(wadfiesp)<-direffl2
+        cat("\nCases with greatest influence on relative indirect effects:\n")
+        print(wadfiesp,right=T)
+        cat("\n---\n"); 
+	 }
+      }
       if ((normal==1) & (sobelok==1) & (kk==1))
       {
        sobelsm=sobelmat[(((i-1)*nxvls)+1):(nxvls*i),]
@@ -5445,23 +6876,23 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  }
 
 
- if ((criterr==0) & (saveboot==1))
- {
-  if (boot > 0)
-  {
-   if (outscreen==1)
-   {
-    cat("\n*********************************************************************** \n")
-    conseq<-conseq[2:nrow(conseq),]
-    #cat("Bootstrap estimates were saved in a global dataframe named process.boots\n")
-    colslab<-cbind(savlabs,conseq,vlabs)
-    cat("\nMap of column names to model coefficients in bootstrap matrix:\n")
-    rownames(colslab)<-t(matrix(replicate(nrow(colslab)," ")))
-    colnames(colslab)<-c("name","Conseqnt","Antecdnt")
-    print(noquote(colslab),right=T)
-   }
-  }
- }
+ #if ((criterr==0) & (saveboot==1))
+ #{
+ # if (boot > 0)
+ # {
+ #  if (outscreen==1)
+ #  {
+ #   cat("\n*********************************************************************** \n")
+ #   conseq<-conseq[2:nrow(conseq),]
+ #   #cat("Bootstrap estimates were saved in a global dataframe named process.boots\n")
+ #   colslab<-cbind(savlabs,conseq,vlabs)
+ #   cat("\nMap of column names to model coefficients in bootstrap matrix:\n")
+ #   rownames(colslab)<-t(matrix(replicate(nrow(colslab)," ")))
+ #   colnames(colslab)<-c("name","Conseqnt","Antecdnt")
+ #   print(noquote(colslab),right=T)
+ #  }
+ # }
+ #}
 
  #PRINT BOOTSTRAP RESULTS FOR MODEL PARAMETERS
  if ((criterr==0) & (boot > 0) & (modelbt==1))
@@ -5487,6 +6918,30 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    }
    labstart<-labstart+nump[1,iboot]
    if ((iboot < (nms+nys)) & (outscreen==1)){cat("----------\n")}
+  }
+ }
+
+ if (criterr==0)
+ {
+  if ((savediag==1) & (ydich==0) & (sv4match==0))
+  {
+   for (i in (1:(nms+nys+dototal)))
+   {
+    regdiag<-diagout[[i]]
+    regdial<-t(matrix(diagoutl[[i]]))
+    if ((nms > 0) & (anymod2==0))
+    {
+     regdiag<-cbind(regdiag,dfindfx[,2:ncol(dfindfx)])
+     regdial<-cbind(regdial,t(matrix(dfinds[1:(ncol(dfindfx)-1),1])))
+     colnames(regdiag)<-regdial
+     diagout[[i]]<-regdiag
+    }
+    if ((nms+nys)==1)
+    {
+     colnames(regdiag)<-regdial
+     diagout<-regdiag
+    }
+   } 
   }
  }
 
@@ -5562,6 +7017,11 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
 
  if (criterr==0)
  {
+  if ((boot > 0) & (saveest==1))
+  {
+   outformres<-process.outform3(t(matrix(cbind(badboot,singerc,eiverc))),maxresm,resultm)
+   maxresm<-unlist(outformres[2]);resultm<-matrix(unlist(outformres[1]),ncol=maxresm)
+  }
   resultm<-resultm[2:nrow(resultm),]
   bocaj<-matrix(as.numeric(resultm==99999),nrow=nrow(resultm))
   bocaj<-(colSums(bocaj)==nrow(resultm))
@@ -5584,12 +7044,19 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   { 
    if ((goodboot==boot) & (bc==0))
    {
-    cat("\nNumber of bootstraps for percentile bootstrap confidence intervals: ")
-    write.table(boot,quote=FALSE,row.names=FALSE,col.names=FALSE)  
+    if (clusboot==0)
+    {cat("\nNumber of bootstraps for percentile bootstrap confidence intervals: ")}
+    if (clusboot > 0)
+    {cat("\nNumber of bootstraps for (cluster) percentile bootstrap confidence intervals: ")}
+    write.table(boot,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  
    }
    if ((goodboot==boot) & (bc==1))
    {
-    cat("\nNumber of bootstraps for bias-corrected bootstrap confidence intervals: ")
+    if (clusboot==0)
+    {cat("\nNumber of bootstraps for bias-corrected bootstrap confidence intervals: ")}
+    if (clusboot > 0)
+    {cat("\nNumber of bootstraps for (cluster) bias-corrected bootstrap confidence intervals: ")}
     write.table(boot,quote=FALSE,row.names=FALSE,col.names=FALSE)  
    }
    if (length(badend) > 1)
@@ -5640,9 +7107,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   if (maxzwarn > 0)
   {cat("\nNOTE: One SD above the mean is above the maximum observed in the data for Z,\n")
    cat("      so the maximum measurement on Z is used for conditioning instead.\n")}
-  if (pstog==1)
-  {cat("\nNOTE: Standardized coefficients for dichotomous or multicategorical X are\n")
-   cat("      in partially standardized form.\n")}
+  #if (pstog==1)
+  #{cat("\nNOTE: Standardized coefficients for dichotomous or multicategorical X are\n")
+  # cat("      in partially standardized form.\n")}
   for (i in c(1:100)) 
   {
   if (notecode[i,1]==32)
@@ -5664,6 +7131,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
     print(xrefvals,right=T)
    }
   }
+  if (notecode[i,1]==41)
+   {cat(" \n")
+   cat("NOTE: Regression diagnostics were save to a file. \n")}
   if (notecode[i,1]==1)
    {cat(" \n")
    cat("NOTE: COVMY is ignored when using CMATRIX option. \n")}
@@ -5678,8 +7148,23 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    write.table(centvar,quote=FALSE,row.names=FALSE,col.names=FALSE)
    }
   if ((notecode[i,1]==4) & (ydich != 1))
-   {cat(" \n")
-   cat("NOTE: A heteroscedasticity consistent standard error and covariance matrix estimator was used. \n")}  
+  {
+   cat(" \n")
+   if (robustse==0)
+    {cat("NOTE: A heteroscedasticity consistent standard error and covariance matrix\n")
+     cat("      estimator was used.\n")}
+   if (robustse==1)
+    {
+     cat("NOTE: A cluster robust standard error and covariance matrix estimator was used. \n")
+     cat("      Degrees of freedom for t statistics and denominator of F tests is ")
+     write.table(dfres,quote=FALSE,row.names=FALSE,col.names=FALSE)  
+     if (intncd==1)
+     {
+      cat("\nNOTE: Some F tests could not be completed due to an insufficient number of clusters. \n")
+      cat("      These are displayed in the output as 99999. \n")
+     }
+    }
+  }     
   if (notecode[i,1]==6)
    {cat(" \n")
    cat("NOTE: Due to estimation problems, some bootstrap samples had to be replaced. \n")
@@ -5712,6 +7197,10 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   if (notecode[i,1]==13)
    {cat(" \n")
    cat("NOTE: There are too many pairwise contrasts to conduct with this model. \n")}  
+  if (notecode[i,1]==40)
+   {cat(" \n")
+   cat("NOTE: All subsets regression and dominance analysis are not available with fewer\n")
+   cat("      than 2 or more than 15 regressors.\n")}
   if (notecode[i,1]==14)
    {cat(" \n")
    cat("NOTE: The number of contrast weights must equal the number of indirect effects. \n")}  
@@ -5736,7 +7225,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
    cat("NOTE: STAND/EFFSIZE options not available with dichotomous Y. \n")}
   if (notecode[i,1]==27)
    {cat(" \n")
-   cat("NOTE: Standardized coefficients not available for models with moderators. \n")}
+   cat("NOTE: Regression diagnostics are not available for models with a dichotomous Y. \n")}
   if (notecode[i,1]==28)
    {cat(" \n")
    cat("NOTE: The contrast option is not available with a multicategorical X. \n")}
@@ -5769,6 +7258,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   if (notecode[i,1]==37)
    {cat(" \n")
    cat("NOTE: The CONTRAST option is not available when using the XMINT option. \n")}
+  if (notecode[i,1]==39)
+   {cat(" \n")
+   cat("NOTE: Due to a naming conflict, regression diagnostics were not saved. \n")}
   if (notecode[i,1]==38)
    {cat(" \n")
    cat("NOTE: One or more cases were deleted prior to analysis at your request. \n")}
@@ -5822,6 +7314,30 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
       }
 
    }
+
+
+   
+  }
+  if (eivdo==1)
+  {
+   eivrel2<-t(matrix(eivrel[1,nxvls:ncol(eivrel)]))
+   varneiv<-t(varnames[2:nrow(varnames),1])
+   cat("\nNOTE: The errors-in-variables analysis assumes the following reliabilities: \n")
+   if (ncol(eivrel2) < 9)
+   {
+    cat("\n")
+    rownames(eivrel2)<-" "
+    colnames(eivrel2)<-varneiv
+    print(eivrel2,right=T) 
+   }
+   if (ncol(eivrel2) >= 9)
+   {
+    eivrel2<-t(eivrel2)
+    varneiv<-t(varneiv)
+    colnames(eivrel2)<-" "
+    rownames(eivrel2)<-varneiv
+    print(eivrel2,right=T) 
+   }
   }
   if ((nmiss > 0) & (listmiss==0))
   {cat(" \n")
@@ -5840,7 +7356,7 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
   cat("ERROR: X, M, or Y variable used more than once or W and Z are the same variable. \n")}  
  if (errcode[i,1]==3)
   {cat(" \n")
-  cat("ERROR: You have specified more than one variable for W, Y, X, or Z. \n")} 
+  cat("ERROR: This model accepts only one variable for W, Y, X, Z, or cluster. \n")} 
  if (errcode[i,1]==4)
   {cat(" \n")
   cat("ERROR: A variable specified as multicategorical has more than nine categories. \n")} 
@@ -5892,8 +7408,9 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  if (errcode[i,1]==60)
   {cat(" \n")
   cat("PROCESS is now ready for use.\n")
-  cat("Copyright 2020-2023 by Andrew F. Hayes ALL RIGHTS RESERVED\n")
-  cat("Workshop schedule at http://haskayne.ucalgary.ca/CCRAM\n \n")}
+  cat("Copyright 2013-2025 by Andrew F. Hayes ALL RIGHTS RESERVED\n")
+  cat("Workshop schedule at haskayne.ucalgary.ca/CCRAM \n")
+  cat("Information about PROCESS available at processmacro.org/faq.html \n\n")}
  if (errcode[i,1]==21)
   {cat(" \n")
   cat("ERROR: If only one moderator is specified, it must be specified as W. \n")}
@@ -6001,15 +7518,64 @@ process<-function(data,y="xxxxx",x="xxxxx",m="xxxxx",w="xxxxx",z="xxxxx",cov="xx
  if (errcode[i,1]==53)
   {cat(" \n")
   cat("ERROR: Variables declared as factors or that are non-numeric are not accepted by PROCESS.\n")}  
+ if (errcode[i,1]==73)
+   {cat(" \n")
+    cat("ERROR: The SPLINE option allows no more than 8 joints. \n")}
+ if (errcode[i,1]==74)
+   {cat(" \n")
+    cat("ERROR: Spline joint locations must be listed in ascending order with no ties. \n")}
+  if (errcode[i,1]==75)
+   {cat(" \n")
+    cat("ERROR: All spline joint locations must be larger than the minimum observed value. \n")}
+  if (errcode[i,1]==76)
+   {cat(" \n")
+    cat("ERROR: Each spline segment must contain at least two cases. \n")}
+  if (errcode[i,1]==77)
+   {cat(" \n")
+    cat("ERROR: The SPLINE option is not available for this model. \n")}
+  if (errcode[i,1]==78)
+   {cat(" \n")
+    cat("ERROR: CLUSTER requires use of the ROBUSTSE or CLUSBOOT options. \n")}
+  if (errcode[i,1]==79)
+   {cat(" \n")
+    cat("ERROR: ROBUSTSE and CLUSBOOT options require a clustering variable. \n")}
+  if (errcode[i,1]==80)
+   {cat(" \n")
+    cat("ERROR: A variable in your PROCESS command does not exist in the data. \n")}
+  if (errcode[i,1]==81)
+   {cat(" \n")
+    cat("ERROR: Cluster robust standard errors not available with a dichotomous Y. \n")}
+  if (errcode[i,1]==82)
+   {cat(" \n")
+    cat("ERROR: Errors-in-variables estimation not allowed for this model. \n")}
+  if (errcode[i,1]==83)
+   {cat(" \n")
+    cat("ERROR: Incorrect number of reliabiities provided. \n")}
+  if (errcode[i,1]==84)
+   {cat(" \n")
+    cat("ERROR: Reliabilities must be larger than 0 and no larger than 1. \n")}
+  if (errcode[i,1]==85)
+   {cat(" \n")
+    cat("ERROR: One of the assumed reliabilities is too small to estimate the model. \n")}
+  if (errcode[i,1]==86)
+   {cat(" \n")
+    cat("ERROR: Errors-in-variables estimation not available with a dichotomous Y. \n")}
+  if (errcode[i,1]==87)
+   {cat(" \n")
+    cat("ERROR: The ROBUSTSE and HC options are not available with errors-in-variables \n")
+    cat("       estimation. Use the eiv option or let it default to eiv=3. \n")}
+  if (errcode[i,1]==88)
+   {cat(" \n")
+    cat("ERROR: Invalid argument for EIV option. \n")}
  }
- #if (saveboot==1)
- #{resultm<-list(resultm,boots)}
- #invisible(resultm)
+ 
+
  resultms<-NULL
  if ((saveboot==0) & (saveest==1)){resultms<-resultm}
  if ((saveboot==1) & (saveest==0)){resultms<-boots}
  if ((saveboot==1) & (saveest==1)){resultms<-(list(boots,resultm))}
+ #if ((savediag==1) & (model < 4)){resultms<-regdiag}
+ if ((savediag==1) & (sv4match==0)){resultms<-diagout}
  invisible(resultms)
 }  
 process(activate=1)
-

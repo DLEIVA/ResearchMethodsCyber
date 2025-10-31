@@ -1,6 +1,5 @@
-Copyright (c) 2012-2023 by Andrew F. Hayes
+Copyright (c) 2012-2025 by Andrew F. Hayes
 ALL RIGHTS RESERVED
-afhayes@processmacro.org
 
 This code should be distributed only through processmacro.org
 
