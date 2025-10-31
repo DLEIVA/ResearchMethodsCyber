@@ -1,7 +1,7 @@
 # ResearchMethodsCyber
 ## Materials for course Research Methods in Cyberspace, Behavior, and e-Therapy
 
-### November 19-21, 2024
+### November 4-6, 2025
 
 ### David Leiva Ureña
 
@@ -46,7 +46,7 @@ My name is David Leiva and I am an Associate Professor in the Department of Soci
 
 ## Previous steps
 
-Please make sure that you have at least version 4.3 of R installed &mdash; *and preferably version 4.4* &mdash; (as depending on the packages used they require updated versions of the software). Note that R and RStudio are two different programs: it is not sufficient to have an updated version of RStudio as R is updated independently on a regular basis.
+Please make sure that you have at least version 4.4 if R installed &mdash; *and preferably version 4.5.1* &mdash; (as depending on the packages used they require updated versions of the software). Note that R and RStudio are two different programs: it is not sufficient to have an updated version of RStudio as R is updated independently on a regular basis.
 
 To check the version of R installed, you can run
 
@@ -56,7 +56,7 @@ version
 
 in R and read in the `version.string` section (or the `major` and `minor` sections).
 
-If the installed version of R is < 4.3.0, you will need to upgrade the program after downloading and installing it. To download R go to the [CRAN Download page](https://cran.r-project.org/) and select the appropriate link for your operating system:
+If the installed version of R is < 4.4.0, you will need to upgrade the program after downloading and installing it. To download R go to the [CRAN Download page](https://cran.r-project.org/) and select the appropriate link for your operating system:
 
 * [Windows](https://cran.r-project.org/bin/windows/)
 * [MacOS X](https://cran.r-project.org/bin/macosx/)
