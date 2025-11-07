@@ -35,13 +35,13 @@ StressDF <- read_sav(here("MATERIALS","Practice","DataSets", "estress.sav"))
 ### Fit model
 
 ```{r message=FALSE,warning=FALSE}
-results <- process(StressDF,y='withdraw',x='estress',m='affect',total=1,model=4,progress=0,save=3)
+results2 <- process(StressDF,y='withdraw',x='estress',m='affect',total=1,model=4,progress=0,save=3)
 ```
 
 ### Plot fitted model
 
 ```{r}
-resCOEFS <- round(results[[2]],2)
+resCOEFS <- round(results[[2]],2) # This results[[2]] are availabe because we specified save=3!!!
 
 starlabs <- c(paste("c´=",resCOEFS[12,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[12,4]<.001,'***',ifelse(resCOEFS[12,4]<.01,'**',ifelse(resCOEFS[12,4]<.05,'*',' '))),"</SUP></FONT>",sep=''),
               paste("a<FONT POINT-SIZE='6'><SUB>1</SUB></FONT>=",resCOEFS[3,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[3,4]<.001,'***',ifelse(resCOEFS[3,4]<.01,'**',ifelse(resCOEFS[3,4]<.05,'*',' '))),"</SUP></FONT>",sep=''),
@@ -95,7 +95,7 @@ results <- process(pmiDF,y='reaction',x='cond',m=c('pmi','import'),total=1,model
 ### Plot fitted model
 
 ```{r}
-resCOEFS <- round(results[[2]],2)
+resCOEFS <- round(results[[2]],2) # This results[[2]] are available because we specified save=3!!!
 
 starlabs <- c(paste("c´=",resCOEFS[9,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[9,4]<.001,'***',ifelse(resCOEFS[9,4]<.01,'**',ifelse(resCOEFS[9,4]<=.05,'*',' '))),"</SUP></FONT>",sep=''),
               paste("a<FONT POINT-SIZE='6'><SUB>1</SUB></FONT>=",resCOEFS[6,1],"<FONT POINT-SIZE='6'><SUP>",ifelse(resCOEFS[6,4]<.001,'***',ifelse(resCOEFS[6,4]<.01,'**',ifelse(resCOEFS[6,4]<=.05,'*',' '))),"</SUP></FONT>",sep=''),
